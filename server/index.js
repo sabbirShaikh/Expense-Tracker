@@ -496,3 +496,5 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Secure API Proxy Server running locally on http://localhost:${PORT}`)
 })
+
+export default app
