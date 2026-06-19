@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLedger } from '../hooks/useLedger'
+import { useAuth } from '../hooks/useAuth'
 import {
   PlusCircle,
   TrendingUp,
@@ -15,7 +16,11 @@ import {
   FileCheck,
   ChevronDown,
   Calendar,
-  FileText
+  FileText,
+  Edit,
+  Trash2,
+  Settings,
+  Handshake
 } from 'lucide-react'
 
 // Helper to get local date-time string formatted for datetime-local inputs
@@ -62,9 +67,11 @@ const FreelanceIcon = () => <Code className="w-4 h-4 text-cyan-400 shrink-0" />
 const InvestmentIcon = () => <TrendIcon className="w-4 h-4 text-indigo-400 shrink-0" />
 const GiftIcon = () => <Gift className="w-4 h-4 text-rose-400 shrink-0" />
 const RefundIcon = () => <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" />
+const BorrowedIcon = () => <Handshake className="w-4 h-4 text-indigo-400 shrink-0" />
 
 export function CreditsPage() {
-  const { credits, loading, error, addCredit, fetchCredits } = useLedger()
+  const { credits, loading, error, addCredit, fetchCredits, deleteCredit, updateCredit } = useLedger()
+  const { email } = useAuth()
 
   const [amountInput, setAmountInput] = useState('')
   const [selectedSourceOfPayment, setSelectedSourceOfPayment] = useState('Bank Transfer')
@@ -78,6 +85,93 @@ export function CreditsPage() {
   const [isSourceOpen, setIsSourceOpen] = useState(false)
   const [isPurposeOpen, setIsPurposeOpen] = useState(false)
   const [buttonState, setButtonState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+
+  // Edit Modal State
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<any | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editSourceOfPayment, setEditSourceOfPayment] = useState('')
+  const [editOtherSourceText, setEditOtherSourceText] = useState('')
+  const [editPurpose, setEditPurpose] = useState('')
+  const [editOtherPurposeText, setEditOtherPurposeText] = useState('')
+  const [editCreditedFrom, setEditCreditedFrom] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editNote, setEditNote] = useState('')
+  const [isEditSourceOpen, setIsEditSourceOpen] = useState(false)
+  const [isEditPurposeOpen, setIsEditPurposeOpen] = useState(false)
+  const [editButtonState, setEditButtonState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+
+  // Delete Modal State
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [deletingRecord, setDeletingRecord] = useState<any | null>(null)
+  const [deleteButtonState, setDeleteButtonState] = useState<'idle' | 'deleting' | 'deleted' | 'error'>('idle')
+
+  // Custom Presets State
+  const [presetItems, setPresetItems] = useState<any[]>([])
+  const [isPresetModalOpen, setIsPresetModalOpen] = useState(false)
+  const [newPresetLabel, setNewPresetLabel] = useState('')
+  const [newPresetAmount, setNewPresetAmount] = useState('')
+  const [newPresetPurpose, setNewPresetPurpose] = useState('Salary')
+  const [newPresetOtherPurposeText, setNewPresetOtherPurposeText] = useState('')
+  const [newPresetCreditedFrom, setNewPresetCreditedFrom] = useState('')
+  const [isNewPresetPurposeOpen, setIsNewPresetPurposeOpen] = useState(false)
+
+  const DEFAULT_CREDIT_PRESETS = [
+    { label: '💼 Salary', amount: 5000, purpose: 'Salary', creditedFrom: 'Corporate Workspace' },
+    { label: '💻 Freelance', amount: 1500, purpose: 'Freelance', creditedFrom: 'Client Project' },
+    { label: '📈 Dividend', amount: 250, purpose: 'Investments', creditedFrom: 'Broker Account' },
+    { label: '🎁 Gift', amount: 100, purpose: 'Gift', creditedFrom: 'Family member' },
+  ]
+
+  useEffect(() => {
+    if (!email) return
+    const stored = localStorage.getItem(`ledgerflow_presets_credit_${email}`)
+    if (stored) {
+      try {
+        setPresetItems(JSON.parse(stored))
+      } catch (e) {
+        setPresetItems(DEFAULT_CREDIT_PRESETS)
+      }
+    } else {
+      setPresetItems(DEFAULT_CREDIT_PRESETS)
+      localStorage.setItem(`ledgerflow_presets_credit_${email}`, JSON.stringify(DEFAULT_CREDIT_PRESETS))
+    }
+  }, [email])
+
+  const handleAddPreset = (e: React.FormEvent) => {
+    e.preventDefault()
+    const amt = parseFloat(newPresetAmount)
+    if (!newPresetLabel.trim() || isNaN(amt) || amt <= 0) return
+
+    const finalPurpose = newPresetPurpose === 'Other' ? newPresetOtherPurposeText : newPresetPurpose
+    const newPreset = {
+      label: newPresetLabel.trim(),
+      amount: amt,
+      purpose: finalPurpose || 'Other',
+      creditedFrom: newPresetCreditedFrom.trim()
+    }
+
+    const updated = [...presetItems, newPreset]
+    setPresetItems(updated)
+    if (email) {
+      localStorage.setItem(`ledgerflow_presets_credit_${email}`, JSON.stringify(updated))
+    }
+
+    // Reset form
+    setNewPresetLabel('')
+    setNewPresetAmount('')
+    setNewPresetPurpose('Salary')
+    setNewPresetOtherPurposeText('')
+    setNewPresetCreditedFrom('')
+  }
+
+  const handleDeletePreset = (indexToDelete: number) => {
+    const updated = presetItems.filter((_, idx) => idx !== indexToDelete)
+    setPresetItems(updated)
+    if (email) {
+      localStorage.setItem(`ledgerflow_presets_credit_${email}`, JSON.stringify(updated))
+    }
+  }
 
   const sourceOptions = [
     { value: 'Bank Transfer', label: 'Bank Transfer', icon: <Landmark className="w-4 h-4 text-zinc-400 shrink-0" /> },
@@ -94,14 +188,8 @@ export function CreditsPage() {
     { value: 'Investments', label: 'Investments / Dividends', icon: <InvestmentIcon /> },
     { value: 'Gift', label: 'Gift', icon: <GiftIcon /> },
     { value: 'Refund', label: 'Refund / Cashbacks', icon: <RefundIcon /> },
+    { value: 'Borrowed / Loan', label: 'Borrowed / Loan', icon: <BorrowedIcon /> },
     { value: 'Other', label: 'Other', icon: <OtherIcon /> },
-  ]
-
-  const presetItems = [
-    { label: '💼 Salary', amount: 5000, purpose: 'Salary', creditedFrom: 'Corporate Workspace' },
-    { label: '💻 Freelance', amount: 1500, purpose: 'Freelance', creditedFrom: 'Client Project' },
-    { label: '📈 Dividend', amount: 250, purpose: 'Investments', creditedFrom: 'Broker Account' },
-    { label: '🎁 Gift', amount: 100, purpose: 'Gift', creditedFrom: 'Family member' },
   ]
 
   const handlePresetSelect = (amount: number, purpose: string, creditedFrom: string) => {
@@ -131,6 +219,27 @@ export function CreditsPage() {
     )
 
     if (success !== null) {
+      if (finalPurpose === 'Borrowed / Loan') {
+        const storageKey = `ledgerflow_peer_loans_${email}`
+        let list = []
+        try {
+          const stored = localStorage.getItem(storageKey)
+          if (stored) list = JSON.parse(stored)
+        } catch (e) {
+          console.error(e)
+        }
+        const newLoan = {
+          id: `loan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'borrow' as const,
+          contact: creditedFromInput.trim() || 'Lender',
+          amount: amt,
+          purpose: noteInput.trim() || 'Borrowed / Loan',
+          date: dateInput.split('T')[0],
+          status: 'active' as const
+        }
+        localStorage.setItem(storageKey, JSON.stringify([newLoan, ...list]))
+      }
+
       setButtonState('saved')
       setAmountInput('')
       setSelectedSourceOfPayment('Bank Transfer')
@@ -144,6 +253,103 @@ export function CreditsPage() {
     } else {
       setButtonState('error')
       setTimeout(() => setButtonState('idle'), 1800)
+    }
+  }
+
+  const handleEditClick = (record: any) => {
+    setEditingRecord(record)
+    setEditAmount(record.Amount.toString())
+    
+    // Check if source of payment is in predefined options
+    const isSourcePredefined = sourceOptions.some(o => o.value === record['Source of Payment'] && o.value !== 'Other')
+    if (isSourcePredefined) {
+      setEditSourceOfPayment(record['Source of Payment'])
+      setEditOtherSourceText('')
+    } else {
+      setEditSourceOfPayment('Other')
+      setEditOtherSourceText(record['Source of Payment'] || '')
+    }
+
+    // Check if purpose is in predefined options
+    const isPurposePredefined = purposeOptions.some(o => o.value === record.Purpose && o.value !== 'Other')
+    if (isPurposePredefined) {
+      setEditPurpose(record.Purpose)
+      setEditOtherPurposeText('')
+    } else {
+      setEditPurpose('Other')
+      setEditOtherPurposeText(record.Purpose || '')
+    }
+
+    setEditCreditedFrom(record['Credited From'] || '')
+    // Format date correctly for datetime-local (YYYY-MM-DDTHH:mm)
+    const dateObj = new Date(record.Date)
+    setEditDate(getLocalDateTimeString(dateObj))
+    setEditNote(record.Note || '')
+    setIsEditOpen(true)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingRecord) return
+    const amt = parseFloat(editAmount)
+    if (isNaN(amt) || amt <= 0) return
+
+    setEditButtonState('saving')
+    const finalSourceOfPayment = editSourceOfPayment === 'Other' ? editOtherSourceText : editSourceOfPayment
+    const finalPurpose = editPurpose === 'Other' ? editOtherPurposeText : editPurpose
+
+    const success = await updateCredit(
+      editingRecord._id,
+      editingRecord.Amount,
+      amt,
+      editingRecord.Purpose,
+      finalPurpose,
+      editingRecord.Date,
+      new Date(editDate).toISOString(),
+      editCreditedFrom,
+      finalSourceOfPayment,
+      editNote
+    )
+
+    if (success) {
+      setEditButtonState('saved')
+      setTimeout(() => {
+        setIsEditOpen(false)
+        setEditingRecord(null)
+        setEditButtonState('idle')
+      }, 1000)
+    } else {
+      setEditButtonState('error')
+      setTimeout(() => setEditButtonState('idle'), 1500)
+    }
+  }
+
+  const handleDeleteClick = (record: any) => {
+    setDeletingRecord(record)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingRecord) return
+    setDeleteButtonState('deleting')
+
+    const success = await deleteCredit(
+      deletingRecord._id,
+      deletingRecord.Amount,
+      deletingRecord.Purpose,
+      deletingRecord.Date
+    )
+
+    if (success) {
+      setDeleteButtonState('deleted')
+      setTimeout(() => {
+        setIsDeleteOpen(false)
+        setDeletingRecord(null)
+        setDeleteButtonState('idle')
+      }, 1000)
+    } else {
+      setDeleteButtonState('error')
+      setTimeout(() => setDeleteButtonState('idle'), 1500)
     }
   }
 
@@ -183,7 +389,18 @@ export function CreditsPage() {
             
             {/* Quick Presets */}
             <div className="space-y-2">
-              <span className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Quick Presets</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Quick Presets</span>
+                <button
+                  type="button"
+                  onClick={() => setIsPresetModalOpen(true)}
+                  className="p-1 px-2 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 hover:text-white rounded-lg cursor-pointer transition-all active:scale-90 flex items-center gap-1 text-[10px] font-medium"
+                  title="Customize Presets"
+                >
+                  <Settings className="w-3 h-3 text-zinc-400" />
+                  <span>Customize</span>
+                </button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {presetItems.map((preset, idx) => (
                   <button
@@ -195,6 +412,9 @@ export function CreditsPage() {
                     {preset.label}
                   </button>
                 ))}
+                {presetItems.length === 0 && (
+                  <span className="text-[11px] text-zinc-500 italic">No presets. Click Customize to add.</span>
+                )}
               </div>
             </div>
 
@@ -468,6 +688,7 @@ export function CreditsPage() {
                   <th className="px-6 py-3.5">Credited From</th>
                   <th className="px-6 py-3.5">Payment Node</th>
                   <th className="px-6 py-3.5 text-right">Net Amount</th>
+                  <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/40 font-sans text-sm">
@@ -492,11 +713,29 @@ export function CreditsPage() {
                     <td className="px-6 py-4 text-right font-mono font-bold text-emerald-400 text-sm whitespace-nowrap">
                       +₹{record.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEditClick(record)}
+                          className="p-1.5 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300 hover:text-white rounded-lg cursor-pointer transition-all active:scale-90"
+                          title="Edit Transaction"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(record)}
+                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-450 hover:text-rose-450 rounded-lg cursor-pointer transition-all active:scale-90"
+                          title="Delete Transaction"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {credits.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-16 text-center text-zinc-500 italic font-normal">
+                    <td colSpan={6} className="px-6 py-16 text-center text-zinc-500 italic font-normal">
                       {loading ? 'Processing asset entries...' : 'No credit balances or logs initialized.'}
                     </td>
                   </tr>
@@ -507,6 +746,503 @@ export function CreditsPage() {
         </div>
 
       </div>
+
+      {/* Edit Credit Modal */}
+      {isEditOpen && editingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl relative animate-in zoom-in-95 duration-200 text-xs">
+            <div>
+              <h3 className="text-base font-semibold text-white flex items-center gap-2.5">
+                <Edit className="w-5 h-5 text-emerald-400" />
+                Edit Income Record
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">Modify current transaction values in the master ledger.</p>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              {/* Amount Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+                  Amount (₹) <span className="text-emerald-400 font-bold ml-0.5">*</span>
+                </label>
+                <div className="relative w-full border border-zinc-800 rounded-xl bg-zinc-950 focus-within:border-emerald-500/50 transition-all duration-150">
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    min="0.01"
+                    placeholder="0.00"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="w-full h-10 px-3 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Source of Payment Dropdown */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+                    Source of Payment
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditSourceOpen(!isEditSourceOpen)
+                      setIsEditPurposeOpen(false)
+                    }}
+                    className="w-full h-10 px-3 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 text-zinc-200 font-medium cursor-pointer"
+                  >
+                    <span className="text-xs truncate">
+                      {editSourceOfPayment || 'Select Source'}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                  </button>
+
+                  {isEditSourceOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsEditSourceOpen(false)} />
+                      <div className="absolute left-0 top-[calc(100%+4px)] w-full bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl py-1 z-50 overflow-y-auto max-h-40">
+                        {sourceOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setEditSourceOfPayment(opt.value)
+                              setIsEditSourceOpen(false)
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 cursor-pointer"
+                          >
+                            {opt.icon}
+                            <span>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Purpose / Category Dropdown */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+                    Purpose / Category
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditPurposeOpen(!isEditPurposeOpen)
+                      setIsEditSourceOpen(false)
+                    }}
+                    className="w-full h-10 px-3 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 text-zinc-200 font-medium cursor-pointer"
+                  >
+                    <span className="text-xs truncate">
+                      {editPurpose || 'Select Category'}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                  </button>
+
+                  {isEditPurposeOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsEditPurposeOpen(false)} />
+                      <div className="absolute left-0 top-[calc(100%+4px)] w-full bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl py-1 z-50 overflow-y-auto max-h-40">
+                        {purposeOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setEditPurpose(opt.value)
+                              setIsEditPurposeOpen(false)
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 cursor-pointer"
+                          >
+                            {opt.icon}
+                            <span>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Other Source Text Input */}
+              {editSourceOfPayment === 'Other' && (
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Specify Source</label>
+                  <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Specify custom source..."
+                      value={editOtherSourceText}
+                      onChange={(e) => setEditOtherSourceText(e.target.value)}
+                      className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none placeholder:text-zinc-700"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Other Purpose Text Input */}
+              {editPurpose === 'Other' && (
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Specify Category</label>
+                  <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Specify custom category..."
+                      value={editOtherPurposeText}
+                      onChange={(e) => setEditOtherPurposeText(e.target.value)}
+                      className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none placeholder:text-zinc-700"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Credited From Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Credited From</label>
+                <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Acme Corp"
+                    value={editCreditedFrom}
+                    onChange={(e) => setEditCreditedFrom(e.target.value)}
+                    className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none placeholder:text-zinc-700"
+                  />
+                </div>
+              </div>
+
+              {/* Date Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Date</label>
+                <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                  <input
+                    type="datetime-local"
+                    required
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none scheme-dark cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Note Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Note (Optional)</label>
+                <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                  <textarea
+                    rows={2}
+                    placeholder="Transaction details..."
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    className="w-full px-3 py-2 bg-transparent border-none outline-none text-xs text-zinc-200 placeholder:text-zinc-700 resize-none font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditOpen(false)
+                    setEditingRecord(null)
+                  }}
+                  className="flex-1 h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || editButtonState === 'saving'}
+                  className={`flex-1 h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 ${
+                    editButtonState === 'saving'
+                      ? 'bg-zinc-850 text-zinc-500 border border-zinc-800/80 cursor-not-allowed'
+                      : editButtonState === 'saved'
+                      ? 'bg-emerald-600 text-white'
+                      : editButtonState === 'error'
+                      ? 'bg-rose-600 text-white'
+                      : 'bg-white text-zinc-950 hover:bg-zinc-200'
+                  }`}
+                >
+                  {editButtonState === 'saving' ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : editButtonState === 'saved' ? (
+                    'Updated ✓'
+                  ) : editButtonState === 'error' ? (
+                    'Failed ✗'
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Credit Modal */}
+      {isDeleteOpen && deletingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-150 text-xs">
+            <div>
+              <h3 className="text-base font-semibold text-white flex items-center gap-2.5">
+                <Trash2 className="w-5 h-5 text-rose-500 animate-pulse" />
+                Confirm Inflow Deletion
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">This operation is permanent. Please review the details below.</p>
+            </div>
+
+            <div className="bg-zinc-950/50 border border-zinc-800/60 rounded-xl p-4.5 space-y-3 font-medium text-zinc-300">
+              <div className="flex justify-between border-b border-zinc-800/40 pb-2">
+                <span className="text-zinc-500 font-normal">Amount:</span>
+                <span className="font-mono text-emerald-400 font-bold">+₹{deletingRecord.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between border-b border-zinc-800/40 pb-2">
+                <span className="text-zinc-500 font-normal">Category / Purpose:</span>
+                <span>{deletingRecord.Purpose}</span>
+              </div>
+              <div className="flex justify-between border-b border-zinc-800/40 pb-2">
+                <span className="text-zinc-500 font-normal">Credited From:</span>
+                <span>{deletingRecord['Credited From']}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 font-normal">Date:</span>
+                <span className="font-mono">{formatDate(deletingRecord.Date)}</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-450 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-zinc-200">Wallet Impact Warning</p>
+                <p className="text-[11px] leading-relaxed text-zinc-400">
+                  Deleting this credit will reduce your wallet balance by <span className="text-rose-400 font-bold font-mono">₹{deletingRecord.Amount.toLocaleString()}</span>. This change propagates to the unified cash flow ledger instantly.
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteOpen(false)
+                  setDeletingRecord(null)
+                }}
+                className="flex-1 h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent"
+              >
+                Keep Record
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={loading || deleteButtonState === 'deleting'}
+                className={`flex-1 h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 ${
+                  deleteButtonState === 'deleting'
+                    ? 'bg-rose-900/40 text-rose-450/55 border border-rose-900/60 cursor-not-allowed'
+                    : deleteButtonState === 'deleted'
+                    ? 'bg-zinc-800 text-zinc-500'
+                    : 'bg-rose-600 text-white hover:bg-rose-500'
+                }`}
+              >
+                {deleteButtonState === 'deleting' ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : deleteButtonState === 'deleted' ? (
+                  'Deleted ✓'
+                ) : deleteButtonState === 'error' ? (
+                  'Error ✗'
+                ) : (
+                  'Confirm Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Presets Modal */}
+      {isPresetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200 text-xs text-zinc-300">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+              <div>
+                <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-emerald-400" />
+                  Customize Inflow Presets
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">Define custom presets to autofill the record forms instantly.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPresetModalOpen(false)}
+                className="text-zinc-500 hover:text-white text-sm font-semibold p-1.5 hover:bg-zinc-800 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Existing Presets List */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Existing Presets</span>
+              <div className="border border-zinc-800/60 rounded-xl overflow-hidden divide-y divide-zinc-800/60 bg-zinc-950/50">
+                {presetItems.map((preset, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 px-4 hover:bg-zinc-900/30 transition-colors">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-white text-xs">{preset.label}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-zinc-800 border border-zinc-700/60 text-zinc-400 rounded-md">
+                          {preset.purpose}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-zinc-500">
+                        Amount: <span className="font-mono font-medium text-emerald-500">₹{preset.amount}</span>
+                        {preset.creditedFrom && ` • From: ${preset.creditedFrom}`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePreset(idx)}
+                      className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-450 hover:text-rose-400 rounded-lg cursor-pointer transition-all active:scale-90"
+                      title="Delete Preset"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {presetItems.length === 0 && (
+                  <div className="p-6 text-center text-zinc-500 italic">No custom presets configured. Add one below!</div>
+                )}
+              </div>
+            </div>
+
+            {/* Add New Preset Form */}
+            <form onSubmit={handleAddPreset} className="space-y-4 pt-3 border-t border-zinc-800">
+              <span className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase block mb-1">Add New Preset</span>
+              
+              <div className="grid grid-cols-2 gap-3.5">
+                {/* Preset Label */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase">Preset Label</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 💼 Salary"
+                    value={newPresetLabel}
+                    onChange={(e) => setNewPresetLabel(e.target.value)}
+                    className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700"
+                  />
+                </div>
+
+                {/* Preset Amount */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase">Amount (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    min="0.01"
+                    placeholder="0.00"
+                    value={newPresetAmount}
+                    onChange={(e) => setNewPresetAmount(e.target.value)}
+                    className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                {/* Preset Purpose / Category */}
+                <div className="space-y-1 relative">
+                  <label className="text-[10px] text-zinc-400 uppercase">Purpose / Category</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewPresetPurposeOpen(!isNewPresetPurposeOpen)}
+                    className="w-full h-10 px-3 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 text-zinc-200 font-medium cursor-pointer"
+                  >
+                    <span className="text-xs truncate">{newPresetPurpose}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                  </button>
+
+                  {isNewPresetPurposeOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsNewPresetPurposeOpen(false)} />
+                      <div className="absolute left-0 top-[calc(100%+4px)] w-full bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl py-1 z-50 overflow-y-auto max-h-40">
+                        {purposeOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setNewPresetPurpose(opt.value)
+                              setIsNewPresetPurposeOpen(false)
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 cursor-pointer"
+                          >
+                            <span>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Credited From */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase">Credited From</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Acme Corp"
+                    value={newPresetCreditedFrom}
+                    onChange={(e) => setNewPresetCreditedFrom(e.target.value)}
+                    className="w-full h-10 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700"
+                  />
+                </div>
+              </div>
+
+              {/* Other Purpose Specifier */}
+              {newPresetPurpose === 'Other' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase">Specify Category</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dividend"
+                    value={newPresetOtherPurposeText}
+                    onChange={(e) => setNewPresetOtherPurposeText(e.target.value)}
+                    className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700"
+                  />
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPresetModalOpen(false)}
+                  className="flex-1 h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent"
+                >
+                  Close Manager
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newPresetLabel || !newPresetAmount}
+                  className="flex-1 h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] bg-white text-zinc-950 hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed border border-zinc-800/80"
+                >
+                  Add Preset
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

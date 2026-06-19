@@ -1,4 +1,4 @@
-/* Custom styles for LandingPage */
+/* Custom styles for LedgerFlow LandingPage */
 
 @keyframes float-a {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -67,3 +67,18 @@
 .landing-body ::-webkit-scrollbar-track { background: transparent; }
 .landing-body ::-webkit-scrollbar-thumb { background: rgba(161, 161, 170, 0.4); border-radius: 9999px; }
 .landing-body ::-webkit-scrollbar-thumb:hover { background: rgba(113, 113, 122, 0.6); }
+
+/* Custom analytical dashboard progress bars */
+.progress-bar-fill-credits {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  transition: width 0.5s ease-out;
+}
+
+.progress-bar-fill-debits {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  transition: width 0.5s ease-out;
+}

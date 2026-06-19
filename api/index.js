@@ -32,6 +32,98 @@ const headers = {
   'Authorization': AUTH_TOKEN,
 }
 
+const STATEMENT_EMAIL_DAILY_LIMIT = 5
+const STATEMENT_EMAIL_COOLDOWN_MS = 5 * 60 * 1000
+const statementEmailRateLimitStore = new Map()
+
+const getStatementDayKey = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const normalizeEmail = (email = '') => email.trim().toLowerCase()
+
+const formatDuration = (ms) => {
+  const totalSeconds = Math.max(1, Math.ceil(ms / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  if (minutes === 0) {
+    return `${seconds}s`
+  }
+
+  if (seconds === 0) {
+    return `${minutes}m`
+  }
+
+  return `${minutes}m ${seconds}s`
+}
+
+const buildStatementRateLimitSnapshot = (email, now = Date.now()) => {
+  const emailKey = normalizeEmail(email)
+  const dayKey = getStatementDayKey(new Date(now))
+  const stored = statementEmailRateLimitStore.get(emailKey)
+  const baseState = !stored || stored.dayKey !== dayKey
+    ? { dayKey, count: 0, lastSentAt: null }
+    : stored
+
+  if (!stored || stored.dayKey !== dayKey) {
+    statementEmailRateLimitStore.set(emailKey, baseState)
+  }
+
+  const cooldownRemainingMs = baseState.lastSentAt
+    ? Math.max(0, STATEMENT_EMAIL_COOLDOWN_MS - (now - baseState.lastSentAt))
+    : 0
+  const nextAllowedAt = baseState.lastSentAt ? baseState.lastSentAt + STATEMENT_EMAIL_COOLDOWN_MS : null
+  const remainingToday = Math.max(0, STATEMENT_EMAIL_DAILY_LIMIT - baseState.count)
+
+  let blockedReason = null
+  let blockedMessage = null
+
+  if (cooldownRemainingMs > 0) {
+    blockedReason = 'cooldown'
+    blockedMessage = `Please wait ${formatDuration(cooldownRemainingMs)} before sending another PDF statement.`
+  } else if (baseState.count >= STATEMENT_EMAIL_DAILY_LIMIT) {
+    blockedReason = 'daily'
+    blockedMessage = `You can email PDF statements a maximum of ${STATEMENT_EMAIL_DAILY_LIMIT} times per day. Please try again tomorrow.`
+  }
+
+  return {
+    emailKey,
+    state: baseState,
+    remainingToday,
+    cooldownRemainingMs,
+    nextAllowedAt,
+    blockedReason,
+    blockedMessage,
+    response: {
+      dayKey: baseState.dayKey,
+      count: baseState.count,
+      lastSentAt: baseState.lastSentAt,
+      remainingToday,
+      nextAllowedAt,
+      cooldownMs: STATEMENT_EMAIL_COOLDOWN_MS,
+      dailyLimit: STATEMENT_EMAIL_DAILY_LIMIT,
+      blockedReason,
+    },
+  }
+}
+
+const recordStatementEmailSend = (email, now = Date.now()) => {
+  const snapshot = buildStatementRateLimitSnapshot(email, now)
+  const nextState = {
+    dayKey: snapshot.state.dayKey,
+    count: snapshot.state.count + 1,
+    lastSentAt: now,
+  }
+
+  statementEmailRateLimitStore.set(snapshot.emailKey, nextState)
+
+  return buildStatementRateLimitSnapshot(email, now)
+}
+
 // -------------------------------------------------------------
 // 1. Check Email API
 // -------------------------------------------------------------
@@ -497,12 +589,481 @@ app.post('/api/ledger/debit', async (req, res) => {
   }
 })
 
+// -------------------------------------------------------------
+// 11. Delete Credit
+// -------------------------------------------------------------
+app.post('/api/ledger/credit/delete', async (req, res) => {
+  const { email, userRowId, creditRowId, amount, purpose, date } = req.body
+
+  try {
+    // A. Delete from Credit worksheet
+    await axios.delete(
+      `${API_BASE_URL}/row/${WORKSHEET_ID}/${CREDIT_VIEW_ID}`,
+      {
+        headers,
+        data: { _ids: [creditRowId] }
+      }
+    )
+
+    // B. Search and delete from Unified worksheet
+    const searchRes = await axios.post(
+      `${API_BASE_URL}/data/${WORKSHEET_ID}/${UNIFIED_VIEW_ID}`,
+      {
+        filter: [
+          { condition: 'where', columnId: 'Email', operator: '=', operand1: { type: 'value', value: email } },
+          { condition: 'and', columnId: 'Date', operator: '=', operand1: { type: 'value', value: date } },
+          { condition: 'and', columnId: 'Credit', operator: '=', operand1: { type: 'value', value: amount } },
+          { condition: 'and', columnId: 'Purpose', operator: '=', operand1: { type: 'value', value: purpose } }
+        ]
+      },
+      { headers }
+    )
+    
+    const unifiedRows = searchRes.data?.results?.data || []
+    if (unifiedRows.length > 0) {
+      const unifiedRowId = unifiedRows[0]._id
+      await axios.delete(
+        `${API_BASE_URL}/row/${WORKSHEET_ID}/${UNIFIED_VIEW_ID}`,
+        {
+          headers,
+          data: { _ids: [unifiedRowId] }
+        }
+      )
+    }
+
+    // C. Recompute & update user balance
+    const userRes = await axios.post(
+      `${API_BASE_URL}/data/${WORKSHEET_ID}/${USER_VIEW_ID}`,
+      {
+        filter: [
+          { condition: 'where', columnId: 'Email', operator: '=', operand1: { type: 'value', value: email } }
+        ]
+      },
+      { headers }
+    )
+    const userRow = userRes.data?.results?.data?.[0]
+    const currentBalance = userRow ? Number(userRow.Balance || 0) : 0
+    const newBalance = currentBalance - amount
+
+    await axios.put(
+      `${API_BASE_URL}/row/${WORKSHEET_ID}/${USER_VIEW_ID}`,
+      {
+        data: [
+          {
+            _id: userRowId,
+            Balance: newBalance
+          }
+        ]
+      },
+      { headers }
+    )
+
+    res.json({ success: true, balance: newBalance })
+  } catch (err) {
+    console.error('Delete Credit Proxy Error:', err.message)
+    res.status(err.response?.status || 500).json({
+      success: false,
+      message: err.response?.data?.message || err.message || 'Failed to delete credit record.'
+    })
+  }
+})
+
+// -------------------------------------------------------------
+// 12. Delete Debit
+// -------------------------------------------------------------
+app.post('/api/ledger/debit/delete', async (req, res) => {
+  const { email, userRowId, debitRowId, amount, purpose, date } = req.body
+
+  try {
+    // A. Delete from Debit worksheet
+    await axios.delete(
+      `${API_BASE_URL}/row/${WORKSHEET_ID}/${DEBIT_VIEW_ID}`,
+      {
+        headers,
+        data: { _ids: [debitRowId] }
+      }
+    )
+
+    // B. Search and delete from Unified worksheet
+    const searchRes = await axios.post(
+      `${API_BASE_URL}/data/${WORKSHEET_ID}/${UNIFIED_VIEW_ID}`,
+      {
+        filter: [
+          { condition: 'where', columnId: 'Email', operator: '=', operand1: { type: 'value', value: email } },
+          { condition: 'and', columnId: 'Date', operator: '=', operand1: { type: 'value', value: date } },
+          { condition: 'and', columnId: 'Debit', operator: '=', operand1: { type: 'value', value: amount } },
+          { condition: 'and', columnId: 'Purpose', operator: '=', operand1: { type: 'value', value: purpose } }
+        ]
+      },
+      { headers }
+    )
+    
+    const unifiedRows = searchRes.data?.results?.data || []
+    if (unifiedRows.length > 0) {
+      const unifiedRowId = unifiedRows[0]._id
+      await axios.delete(
+        `${API_BASE_URL}/row/${WORKSHEET_ID}/${UNIFIED_VIEW_ID}`,
+        {
+          headers,
+          data: { _ids: [unifiedRowId] }
+        }
+      )
+    }
+
+    // C. Recompute & update user balance
+    const userRes = await axios.post(
+      `${API_BASE_URL}/data/${WORKSHEET_ID}/${USER_VIEW_ID}`,
+      {
+        filter: [
+          { condition: 'where', columnId: 'Email', operator: '=', operand1: { type: 'value', value: email } }
+        ]
+      },
+      { headers }
+    )
+    const userRow = userRes.data?.results?.data?.[0]
+    const currentBalance = userRow ? Number(userRow.Balance || 0) : 0
+    const newBalance = currentBalance + amount
+
+    await axios.put(
+      `${API_BASE_URL}/row/${WORKSHEET_ID}/${USER_VIEW_ID}`,
+      {
+        data: [
+          {
+            _id: userRowId,
+            Balance: newBalance
+          }
+        ]
+      },
+      { headers }
+    )
+
+    res.json({ success: true, balance: newBalance })
+  } catch (err) {
+    console.error('Delete Debit Proxy Error:', err.message)
+    res.status(err.response?.status || 500).json({
+      success: false,
+      message: err.response?.data?.message || err.message || 'Failed to delete debit record.'
+    })
+  }
+})
+
+// -------------------------------------------------------------
+// 13. Update Credit
+// -------------------------------------------------------------
+app.post('/api/ledger/credit/update', async (req, res) => {
+  const {
+    email,
+    userRowId,
+    creditRowId,
+    oldAmount,
+    newAmount,
+    oldPurpose,
+    newPurpose,
+    oldDate,
+    newDate,
+    creditedFrom,
+    sourceOfPayment,
+    note
+  } = req.body
+
+  try {
+    // A. Update in Credit worksheet
+    await axios.put(
+      `${API_BASE_URL}/row/${WORKSHEET_ID}/${CREDIT_VIEW_ID}`,
+      {
+        data: [
+          {
+            _id: creditRowId,
+            Amount: newAmount,
+            Purpose: newPurpose,
+            'Credited From': creditedFrom,
+            Date: newDate,
+            'Source Of Payment': sourceOfPayment,
+            Note: note
+          }
+        ]
+      },
+      { headers }
+    )
+
+    // B. Search and update in Unified worksheet
+    const searchRes = await axios.post(
+      `${API_BASE_URL}/data/${WORKSHEET_ID}/${UNIFIED_VIEW_ID}`,
+      {
+        filter: [
+          { condition: 'where', columnId: 'Email', operator: '=', operand1: { type: 'value', value: email } },
+          { condition: 'and', columnId: 'Date', operator: '=', operand1: { type: 'value', value: oldDate } },
+          { condition: 'and', columnId: 'Credit', operator: '=', operand1: { type: 'value', value: oldAmount } },
+          { condition: 'and', columnId: 'Purpose', operator: '=', operand1: { type: 'value', value: oldPurpose } }
+        ]
+      },
+      { headers }
+    )
+    
+    const unifiedRows = searchRes.data?.results?.data || []
+    if (unifiedRows.length > 0) {
+      const unifiedRowId = unifiedRows[0]._id
+      
+      // Calculate new unified balance
+      const currentUnifiedBalance = Number(unifiedRows[0].Balance || 0)
+      const newUnifiedBalance = currentUnifiedBalance + (newAmount - oldAmount)
+
+      await axios.put(
+        `${API_BASE_URL}/row/${WORKSHEET_ID}/${UNIFIED_VIEW_ID}`,
+        {
+          data: [
+            {
+              _id: unifiedRowId,
+              Date: newDate,
+              'Source of Payment': sourceOfPayment,
+              Purpose: newPurpose,
+              Credit: newAmount,
+              Balance: newUnifiedBalance
+            }
+          ]
+        },
+        { headers }
+      )
+    }
+
+    // C. Recompute & update user balance
+    const userRes = await axios.post(
+      `${API_BASE_URL}/data/${WORKSHEET_ID}/${USER_VIEW_ID}`,
+      {
+        filter: [
+          { condition: 'where', columnId: 'Email', operator: '=', operand1: { type: 'value', value: email } }
+        ]
+      },
+      { headers }
+    )
+    const userRow = userRes.data?.results?.data?.[0]
+    const currentBalance = userRow ? Number(userRow.Balance || 0) : 0
+    const newBalance = currentBalance + (newAmount - oldAmount)
+
+    await axios.put(
+      `${API_BASE_URL}/row/${WORKSHEET_ID}/${USER_VIEW_ID}`,
+      {
+        data: [
+          {
+            _id: userRowId,
+            Balance: newBalance
+          }
+        ]
+      },
+      { headers }
+    )
+
+    res.json({ success: true, balance: newBalance })
+  } catch (err) {
+    console.error('Update Credit Proxy Error:', err.message)
+    res.status(err.response?.status || 500).json({
+      success: false,
+      message: err.response?.data?.message || err.message || 'Failed to update credit record.'
+    })
+  }
+})
+
+// -------------------------------------------------------------
+// 14. Update Debit
+// -------------------------------------------------------------
+app.post('/api/ledger/debit/update', async (req, res) => {
+  const {
+    email,
+    userRowId,
+    debitRowId,
+    oldAmount,
+    newAmount,
+    oldPurpose,
+    newPurpose,
+    oldDate,
+    newDate,
+    paidTo,
+    paymentMethod,
+    note
+  } = req.body
+
+  try {
+    // A. Update in Debit worksheet
+    await axios.put(
+      `${API_BASE_URL}/row/${WORKSHEET_ID}/${DEBIT_VIEW_ID}`,
+      {
+        data: [
+          {
+            _id: debitRowId,
+            Amount: newAmount,
+            'Paid to': paidTo,
+            Date: newDate,
+            'Payment Method': paymentMethod,
+            Note: note
+          }
+        ]
+      },
+      { headers }
+    )
+
+    // B. Search and update in Unified worksheet
+    const searchRes = await axios.post(
+      `${API_BASE_URL}/data/${WORKSHEET_ID}/${UNIFIED_VIEW_ID}`,
+      {
+        filter: [
+          { condition: 'where', columnId: 'Email', operator: '=', operand1: { type: 'value', value: email } },
+          { condition: 'and', columnId: 'Date', operator: '=', operand1: { type: 'value', value: oldDate } },
+          { condition: 'and', columnId: 'Debit', operator: '=', operand1: { type: 'value', value: oldAmount } },
+          { condition: 'and', columnId: 'Purpose', operator: '=', operand1: { type: 'value', value: oldPurpose } }
+        ]
+      },
+      { headers }
+    )
+    
+    const unifiedRows = searchRes.data?.results?.data || []
+    if (unifiedRows.length > 0) {
+      const unifiedRowId = unifiedRows[0]._id
+      
+      // Calculate new unified balance
+      const currentUnifiedBalance = Number(unifiedRows[0].Balance || 0)
+      const newUnifiedBalance = currentUnifiedBalance - (newAmount - oldAmount)
+
+      await axios.put(
+        `${API_BASE_URL}/row/${WORKSHEET_ID}/${UNIFIED_VIEW_ID}`,
+        {
+          data: [
+            {
+              _id: unifiedRowId,
+              Date: newDate,
+              'Source of Payment': paymentMethod,
+              Purpose: paidTo,
+              Debit: newAmount,
+              Balance: newUnifiedBalance
+            }
+          ]
+        },
+        { headers }
+      )
+    }
+
+    // C. Recompute & update user balance
+    const userRes = await axios.post(
+      `${API_BASE_URL}/data/${WORKSHEET_ID}/${USER_VIEW_ID}`,
+      {
+        filter: [
+          { condition: 'where', columnId: 'Email', operator: '=', operand1: { type: 'value', value: email } }
+        ]
+      },
+      { headers }
+    )
+    const userRow = userRes.data?.results?.data?.[0]
+    const currentBalance = userRow ? Number(userRow.Balance || 0) : 0
+    const newBalance = currentBalance - (newAmount - oldAmount)
+
+    await axios.put(
+      `${API_BASE_URL}/row/${WORKSHEET_ID}/${USER_VIEW_ID}`,
+      {
+        data: [
+          {
+            _id: userRowId,
+            Balance: newBalance
+          }
+        ]
+      },
+      { headers }
+    )
+
+    res.json({ success: true, balance: newBalance })
+  } catch (err) {
+    console.error('Update Debit Proxy Error:', err.message)
+    res.status(err.response?.status || 500).json({
+      success: false,
+      message: err.response?.data?.message || err.message || 'Failed to update debit record.'
+    })
+  }
+})
+
+// -------------------------------------------------------------
+// 15. Send Statement Email Webhook Proxy
+// -------------------------------------------------------------
+app.post('/api/statement/email', async (req, res) => {
+  const { email, html, startDate, endDate } = req.body
+  const webhookUrl = process.env.TABLESPRINT_STATEMENT_WEBHOOK_URL
+
+  if (!email || !html) {
+    return res.status(400).json({ success: false, message: 'Email and HTML content are required' })
+  }
+
+  if (!webhookUrl) {
+    console.error('TABLESPRINT_STATEMENT_WEBHOOK_URL is not configured in .env')
+    return res.status(500).json({ success: false, message: 'Statement email webhook is not configured on the server.' })
+  }
+
+  const rateLimitSnapshot = buildStatementRateLimitSnapshot(email)
+  if (rateLimitSnapshot.blockedReason) {
+    return res.status(429).json({
+      success: false,
+      message: rateLimitSnapshot.blockedMessage,
+      rateLimit: rateLimitSnapshot.response,
+    })
+  }
+
+  try {
+    console.log(`Forwarding HTML statement to Tablesprint webhook: ${webhookUrl} for user: ${email}`)
+    const response = await axios.post(
+      webhookUrl,
+      {
+        email,
+        html,
+        startDate,
+        endDate
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }
+    )
+
+    const updatedRateLimit = recordStatementEmailSend(email)
+
+    res.json({
+      success: true,
+      message: 'Statement email request sent successfully.',
+      details: response.data,
+      rateLimit: updatedRateLimit.response,
+    })
+  } catch (err) {
+    console.error('Statement Webhook Error:', err.message)
+    res.status(err.response?.status || 500).json({
+      success: false,
+      message: err.response?.data?.message || err.message || 'Failed to dispatch email statement.',
+      rateLimit: rateLimitSnapshot.response,
+    })
+  }
+})
+
+// -------------------------------------------------------------
+// Mock Webhook endpoint for local testing
+// -------------------------------------------------------------
+app.post('/api/mock-webhook', (req, res) => {
+  const { email, html, startDate, endDate } = req.body
+  console.log('--- MOCK WEBHOOK RECEIVED REQUEST ---')
+  console.log('Target Email:', email)
+  console.log('Date Range:', startDate, 'to', endDate)
+  console.log('HTML length:', html ? html.length : 0)
+  console.log('--------------------------------------')
+  
+  res.json({
+    success: true,
+    message: '[MOCK SUCCESS] Webhook received HTML and details successfully. Tablesprint would now render PDF and email it.'
+  })
+})
+
+
 if (!process.env.VERCEL) {
   // Serve static assets from Vite build in production
   app.use(express.static(path.join(__dirname, '../dist')))
 
+
   // Wildcard routing to route all other requests to React index.html
-  app.get('*', (req, res) => {
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'))
   })
 

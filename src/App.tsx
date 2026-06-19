@@ -9,6 +9,8 @@ import { CreditsPage } from './pages/CreditsPage'
 import { DebitsPage } from './pages/DebitsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { LandingPage } from './pages/LandingPage'
+import { BorrowLendPage } from './pages/BorrowLendPage'
+import { StatementPage } from './pages/StatementPage'
  
 export default function App() {
   return (
@@ -30,6 +32,8 @@ export default function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/credits" element={<CreditsPage />} />
                 <Route path="/debits" element={<DebitsPage />} />
+                <Route path="/debts" element={<BorrowLendPage />} />
+                <Route path="/statement" element={<StatementPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
             </Route>

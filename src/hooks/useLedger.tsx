@@ -59,6 +59,42 @@ export interface LedgerContextType {
     note: string,
     date: string
   ) => Promise<number | null>
+  deleteCredit: (
+    creditRowId: string,
+    amount: number,
+    purpose: string,
+    date: string
+  ) => Promise<boolean>
+  deleteDebit: (
+    debitRowId: string,
+    amount: number,
+    purpose: string,
+    date: string
+  ) => Promise<boolean>
+  updateCredit: (
+    creditRowId: string,
+    oldAmount: number,
+    newAmount: number,
+    oldPurpose: string,
+    newPurpose: string,
+    oldDate: string,
+    newDate: string,
+    creditedFrom: string,
+    sourceOfPayment: string,
+    note: string
+  ) => Promise<boolean>
+  updateDebit: (
+    debitRowId: string,
+    oldAmount: number,
+    newAmount: number,
+    oldPurpose: string,
+    newPurpose: string,
+    oldDate: string,
+    newDate: string,
+    paidTo: string,
+    paymentMethod: string,
+    note: string
+  ) => Promise<boolean>
   balance: number
   setBalance: (bal: number) => void
 }
@@ -225,6 +261,170 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // 6. Delete Credit
+  const deleteCredit = async (
+    creditRowId: string,
+    amount: number,
+    purpose: string,
+    date: string
+  ): Promise<boolean> => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await axios.post('/api/ledger/credit/delete', {
+        email,
+        userRowId,
+        creditRowId,
+        amount,
+        purpose,
+        date,
+      })
+      if (res.data?.success) {
+        setBalance(res.data.balance)
+        await refreshUser()
+        await fetchCredits()
+        await fetchUnifiedRecords()
+        return true
+      }
+      return false
+    } catch (err: any) {
+      console.error('Delete Credit Client Error:', err)
+      setError(err.response?.data?.message || err.message || 'Failed to delete credit record.')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 7. Delete Debit
+  const deleteDebit = async (
+    debitRowId: string,
+    amount: number,
+    purpose: string,
+    date: string
+  ): Promise<boolean> => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await axios.post('/api/ledger/debit/delete', {
+        email,
+        userRowId,
+        debitRowId,
+        amount,
+        purpose,
+        date,
+      })
+      if (res.data?.success) {
+        setBalance(res.data.balance)
+        await refreshUser()
+        await fetchDebits()
+        await fetchUnifiedRecords()
+        return true
+      }
+      return false
+    } catch (err: any) {
+      console.error('Delete Debit Client Error:', err)
+      setError(err.response?.data?.message || err.message || 'Failed to delete debit record.')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 8. Update Credit
+  const updateCredit = async (
+    creditRowId: string,
+    oldAmount: number,
+    newAmount: number,
+    oldPurpose: string,
+    newPurpose: string,
+    oldDate: string,
+    newDate: string,
+    creditedFrom: string,
+    sourceOfPayment: string,
+    note: string
+  ): Promise<boolean> => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await axios.post('/api/ledger/credit/update', {
+        email,
+        userRowId,
+        creditRowId,
+        oldAmount,
+        newAmount,
+        oldPurpose,
+        newPurpose,
+        oldDate,
+        newDate,
+        creditedFrom,
+        sourceOfPayment,
+        note,
+      })
+      if (res.data?.success) {
+        setBalance(res.data.balance)
+        await refreshUser()
+        await fetchCredits()
+        await fetchUnifiedRecords()
+        return true
+      }
+      return false
+    } catch (err: any) {
+      console.error('Update Credit Client Error:', err)
+      setError(err.response?.data?.message || err.message || 'Failed to update credit record.')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 9. Update Debit
+  const updateDebit = async (
+    debitRowId: string,
+    oldAmount: number,
+    newAmount: number,
+    oldPurpose: string,
+    newPurpose: string,
+    oldDate: string,
+    newDate: string,
+    paidTo: string,
+    paymentMethod: string,
+    note: string
+  ): Promise<boolean> => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await axios.post('/api/ledger/debit/update', {
+        email,
+        userRowId,
+        debitRowId,
+        oldAmount,
+        newAmount,
+        oldPurpose,
+        newPurpose,
+        oldDate,
+        newDate,
+        paidTo,
+        paymentMethod,
+        note,
+      })
+      if (res.data?.success) {
+        setBalance(res.data.balance)
+        await refreshUser()
+        await fetchDebits()
+        await fetchUnifiedRecords()
+        return true
+      }
+      return false
+    } catch (err: any) {
+      console.error('Update Debit Client Error:', err)
+      setError(err.response?.data?.message || err.message || 'Failed to update debit record.')
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Auto fetch when authenticated
   const isBalanceUnset = user?.Balance === null || user?.Balance === undefined
   useEffect(() => {
@@ -248,6 +448,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         fetchUnifiedRecords,
         addCredit,
         addDebit,
+        deleteCredit,
+        deleteDebit,
+        updateCredit,
+        updateDebit,
         balance,
         setBalance,
       }}

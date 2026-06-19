@@ -10,7 +10,9 @@ import {
   LogOut,
   Menu,
   X,
-  Wallet
+  Wallet,
+  Handshake,
+  FileText
 } from 'lucide-react'
 
 export function Layout() {
@@ -29,6 +31,10 @@ export function Layout() {
         return 'Credits (Income)'
       case '/debits':
         return 'Debits (Expenses)'
+      case '/debts':
+        return 'Borrow & Lend'
+      case '/statement':
+        return 'Statement & Export'
       case '/profile':
         return 'Workspace Profile'
       default:
@@ -47,6 +53,8 @@ export function Layout() {
     { to: '/dashboard', label: 'Overview Ledger', icon: Layers },
     { to: '/credits', label: 'Credits (Income)', icon: TrendingUp },
     { to: '/debits', label: 'Debits (Expenses)', icon: TrendingDown },
+    { to: '/debts', label: 'Borrow & Lend', icon: Handshake },
+    { to: '/statement', label: 'Statement & Export', icon: FileText },
     { to: '/profile', label: 'Profile Settings', icon: User },
   ]
 

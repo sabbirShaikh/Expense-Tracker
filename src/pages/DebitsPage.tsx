@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLedger } from '../hooks/useLedger'
+import { useAuth } from '../hooks/useAuth'
 import {
   TrendingDown,
   RefreshCw,
@@ -7,7 +8,11 @@ import {
   Loader2,
   ChevronDown,
   Calendar,
-  FileText
+  FileText,
+  Edit,
+  Trash2,
+  Settings,
+  Handshake
 } from 'lucide-react'
 
 // Helper to get local date-time string formatted for datetime-local inputs
@@ -127,6 +132,8 @@ const OrderIcon = () => (
   </svg>
 )
 
+const LentIcon = () => <Handshake className="w-4 h-4 text-indigo-400 shrink-0" />
+
 export function DebitsPage() {
   const {
     debits,
@@ -134,7 +141,10 @@ export function DebitsPage() {
     error,
     addDebit,
     fetchDebits,
+    deleteDebit,
+    updateDebit,
   } = useLedger()
+  const { email } = useAuth()
 
   const [amountInput, setAmountInput] = useState('')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('GPay')
@@ -147,6 +157,89 @@ export function DebitsPage() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false)
   const [isPaidToOpen, setIsPaidToOpen] = useState(false)
   const [buttonState, setButtonState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+
+  // Edit Modal State
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<any | null>(null)
+  const [editAmount, setEditAmount] = useState('')
+  const [editPaymentMethod, setEditPaymentMethod] = useState('')
+  const [editOtherPaymentMethodText, setEditOtherPaymentMethodText] = useState('')
+  const [editPaidTo, setEditPaidTo] = useState('')
+  const [editOtherPaidToText, setEditOtherPaidToText] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editNote, setEditNote] = useState('')
+  const [isEditPaymentOpen, setIsEditPaymentOpen] = useState(false)
+  const [isEditPaidToOpen, setIsEditPaidToOpen] = useState(false)
+  const [editButtonState, setEditButtonState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+
+  // Delete Modal State
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [deletingRecord, setDeletingRecord] = useState<any | null>(null)
+  const [deleteButtonState, setDeleteButtonState] = useState<'idle' | 'deleting' | 'deleted' | 'error'>('idle')
+
+  // Custom Presets State
+  const [presetItems, setPresetItems] = useState<any[]>([])
+  const [isPresetModalOpen, setIsPresetModalOpen] = useState(false)
+  const [newPresetLabel, setNewPresetLabel] = useState('')
+  const [newPresetAmount, setNewPresetAmount] = useState('')
+  const [newPresetPaidTo, setNewPresetPaidTo] = useState('Bus Ticket')
+  const [newPresetOtherPaidToText, setNewPresetOtherPaidToText] = useState('')
+  const [isNewPresetPaidToOpen, setIsNewPresetPaidToOpen] = useState(false)
+
+  const DEFAULT_DEBIT_PRESETS = [
+    { label: '🚌 Bus', amount: 12, paidTo: 'Bus Ticket' },
+    { label: '🏠 Rent', amount: 7800, paidTo: 'PG Rent' },
+    { label: '🍱 Lunch', amount: 150, paidTo: 'Lunch Meal' },
+    { label: '☕ Tea', amount: 20, paidTo: 'Tea' },
+  ]
+
+  useEffect(() => {
+    if (!email) return
+    const stored = localStorage.getItem(`ledgerflow_presets_debit_${email}`)
+    if (stored) {
+      try {
+        setPresetItems(JSON.parse(stored))
+      } catch (e) {
+        setPresetItems(DEFAULT_DEBIT_PRESETS)
+      }
+    } else {
+      setPresetItems(DEFAULT_DEBIT_PRESETS)
+      localStorage.setItem(`ledgerflow_presets_debit_${email}`, JSON.stringify(DEFAULT_DEBIT_PRESETS))
+    }
+  }, [email])
+
+  const handleAddPreset = (e: React.FormEvent) => {
+    e.preventDefault()
+    const amt = parseFloat(newPresetAmount)
+    if (!newPresetLabel.trim() || isNaN(amt) || amt <= 0) return
+
+    const finalPaidTo = newPresetPaidTo === 'Other' ? newPresetOtherPaidToText : newPresetPaidTo
+    const newPreset = {
+      label: newPresetLabel.trim(),
+      amount: amt,
+      paidTo: finalPaidTo || 'Other'
+    }
+
+    const updated = [...presetItems, newPreset]
+    setPresetItems(updated)
+    if (email) {
+      localStorage.setItem(`ledgerflow_presets_debit_${email}`, JSON.stringify(updated))
+    }
+
+    // Reset form
+    setNewPresetLabel('')
+    setNewPresetAmount('')
+    setNewPresetPaidTo('Bus Ticket')
+    setNewPresetOtherPaidToText('')
+  }
+
+  const handleDeletePreset = (indexToDelete: number) => {
+    const updated = presetItems.filter((_, idx) => idx !== indexToDelete)
+    setPresetItems(updated)
+    if (email) {
+      localStorage.setItem(`ledgerflow_presets_debit_${email}`, JSON.stringify(updated))
+    }
+  }
 
   const paymentMethods = [
     { value: 'PhonePe', label: 'PhonePe', icon: <PhonePeIcon /> },
@@ -168,14 +261,8 @@ export function DebitsPage() {
     { value: 'UPI Transfer', label: 'UPI Transfer', icon: <TransferIcon /> },
     { value: 'Tea', label: 'Tea', icon: <TeaIcon /> },
     { value: 'Online Order', label: 'Online Order', icon: <OrderIcon /> },
+    { value: 'Lent / Loan', label: 'Lent / Loan', icon: <LentIcon /> },
     { value: 'Other', label: 'Other', icon: <OtherIcon /> },
-  ]
-
-  const presetItems = [
-    { label: '🚌 Bus', amount: 12, paidTo: 'Bus Ticket' },
-    { label: '🏠 Rent', amount: 7800, paidTo: 'PG Rent' },
-    { label: '🍱 Lunch', amount: 150, paidTo: 'Lunch Meal' },
-    { label: '☕ Tea', amount: 20, paidTo: 'Tea' },
   ]
 
   const handlePresetSelect = (amount: number, paidTo: string) => {
@@ -192,7 +279,11 @@ export function DebitsPage() {
 
     setButtonState('saving')
     const finalPaymentMethod = selectedPaymentMethod === 'Other' ? otherPaymentMethodText : selectedPaymentMethod
-    const finalPaidTo = selectedPaidTo === 'Other' ? otherPaidToText : selectedPaidTo
+    const finalPaidTo = selectedPaidTo === 'Other'
+      ? otherPaidToText
+      : selectedPaidTo === 'Lent / Loan'
+        ? `Lent / Loan: ${otherPaidToText}`
+        : selectedPaidTo
 
     const success = await addDebit(
       amt,
@@ -203,6 +294,27 @@ export function DebitsPage() {
     )
 
     if (success !== null) {
+      if (selectedPaidTo === 'Lent / Loan') {
+        const storageKey = `ledgerflow_peer_loans_${email}`
+        let list = []
+        try {
+          const stored = localStorage.getItem(storageKey)
+          if (stored) list = JSON.parse(stored)
+        } catch (e) {
+          console.error(e)
+        }
+        const newLoan = {
+          id: `loan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          type: 'lend' as const,
+          contact: otherPaidToText.trim() || 'Borrower',
+          amount: amt,
+          purpose: noteInput.trim() || 'Lent / Loan',
+          date: dateInput.split('T')[0],
+          status: 'active' as const
+        }
+        localStorage.setItem(storageKey, JSON.stringify([newLoan, ...list]))
+      }
+
       setButtonState('saved')
       setAmountInput('')
       setSelectedPaymentMethod('GPay')
@@ -215,6 +327,102 @@ export function DebitsPage() {
     } else {
       setButtonState('error')
       setTimeout(() => setButtonState('idle'), 1800)
+    }
+  }
+
+  const handleEditClick = (record: any) => {
+    setEditingRecord(record)
+    setEditAmount(record.Amount.toString())
+    
+    // Check if payment method is in predefined options
+    const isMethodPredefined = paymentMethods.some(o => o.value === record['Payment Method'] && o.value !== 'Other')
+    if (isMethodPredefined) {
+      setEditPaymentMethod(record['Payment Method'])
+      setEditOtherPaymentMethodText('')
+    } else {
+      setEditPaymentMethod('Other')
+      setEditOtherPaymentMethodText(record['Payment Method'] || '')
+    }
+
+    // Check if Paid to is in predefined options
+    const isPaidToPredefined = paidToOptions.some(o => o.value === record['Paid to'] && o.value !== 'Other')
+    if (isPaidToPredefined) {
+      setEditPaidTo(record['Paid to'])
+      setEditOtherPaidToText('')
+    } else {
+      setEditPaidTo('Other')
+      setEditOtherPaidToText(record['Paid to'] || '')
+    }
+
+    // Format date correctly for datetime-local (YYYY-MM-DDTHH:mm)
+    const dateObj = new Date(record.Date)
+    setEditDate(getLocalDateTimeString(dateObj))
+    setEditNote(record.Note || '')
+    setIsEditOpen(true)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingRecord) return
+    const amt = parseFloat(editAmount)
+    if (isNaN(amt) || amt <= 0) return
+
+    setEditButtonState('saving')
+    const finalPaymentMethod = editPaymentMethod === 'Other' ? editOtherPaymentMethodText : editPaymentMethod
+    const finalPaidTo = editPaidTo === 'Other' ? editOtherPaidToText : editPaidTo
+
+    const success = await updateDebit(
+      editingRecord._id,
+      editingRecord.Amount,
+      amt,
+      editingRecord['Paid to'],
+      finalPaidTo,
+      editingRecord.Date,
+      new Date(editDate).toISOString(),
+      finalPaidTo,
+      finalPaymentMethod,
+      editNote
+    )
+
+    if (success) {
+      setEditButtonState('saved')
+      setTimeout(() => {
+        setIsEditOpen(false)
+        setEditingRecord(null)
+        setEditButtonState('idle')
+      }, 1000)
+    } else {
+      setEditButtonState('error')
+      setTimeout(() => setEditButtonState('idle'), 1500)
+    }
+  }
+
+  const handleDeleteClick = (record: any) => {
+    setDeletingRecord(record)
+    setIsDeleteOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingRecord) return
+    setDeleteButtonState('deleting')
+
+    const success = await deleteDebit(
+      deletingRecord._id,
+      deletingRecord.Amount,
+      deletingRecord['Paid to'],
+      deletingRecord.Date
+    )
+
+    if (success) {
+      setDeleteButtonState('deleted')
+      setTimeout(() => {
+        setIsDeleteOpen(false)
+        setDeletingRecord(null)
+        setDeleteButtonState('idle')
+      }, 1000)
+    } else {
+      setDeleteButtonState('error')
+      setTimeout(() => setDeleteButtonState('idle'), 1500)
     }
   }
 
@@ -254,7 +462,18 @@ export function DebitsPage() {
             
             {/* Quick Presets */}
             <div className="space-y-2">
-              <span className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Quick Presets</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Quick Presets</span>
+                <button
+                  type="button"
+                  onClick={() => setIsPresetModalOpen(true)}
+                  className="p-1 px-2 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 hover:text-white rounded-lg cursor-pointer transition-all active:scale-90 flex items-center gap-1 text-[10px] font-medium"
+                  title="Customize Presets"
+                >
+                  <Settings className="w-3 h-3 text-zinc-400" />
+                  <span>Customize</span>
+                </button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {presetItems.map((preset, idx) => (
                   <button
@@ -266,6 +485,9 @@ export function DebitsPage() {
                     {preset.label}
                   </button>
                 ))}
+                {presetItems.length === 0 && (
+                  <span className="text-[11px] text-zinc-500 italic">No presets. Click Customize to add.</span>
+                )}
               </div>
             </div>
 
@@ -404,14 +626,16 @@ export function DebitsPage() {
             </div>
 
             {/* Other Paid To Input */}
-            {selectedPaidTo === 'Other' && (
+            {(selectedPaidTo === 'Other' || selectedPaidTo === 'Lent / Loan') && (
               <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-150">
-                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Specify Custom Name</label>
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+                  {selectedPaidTo === 'Lent / Loan' ? 'Specify Peer / Contact Name' : 'Specify Custom Name'}
+                </label>
                 <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950 focus-within:border-zinc-700 transition-all duration-150">
                   <input
                     type="text"
                     required
-                    placeholder="Type name here..."
+                    placeholder={selectedPaidTo === 'Lent / Loan' ? "Enter peer contact name..." : "Type name here..."}
                     value={otherPaidToText}
                     onChange={(e) => setOtherPaidToText(e.target.value)}
                     disabled={loading}
@@ -522,6 +746,7 @@ export function DebitsPage() {
                   <th className="px-6 py-3.5">Paid To</th>
                   <th className="px-6 py-3.5">Payment Node</th>
                   <th className="px-6 py-3.5 text-right">Net Amount</th>
+                  <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/40 font-sans text-sm">
@@ -545,11 +770,29 @@ export function DebitsPage() {
                     <td className="px-6 py-4 text-right font-mono font-bold text-rose-400 text-sm whitespace-nowrap">
                       -₹{record.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEditClick(record)}
+                          className="p-1.5 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300 hover:text-white rounded-lg cursor-pointer transition-all active:scale-90"
+                          title="Edit Transaction"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(record)}
+                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-450 hover:text-rose-450 rounded-lg cursor-pointer transition-all active:scale-90"
+                          title="Delete Transaction"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {debits.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-16 text-center text-zinc-500 italic font-normal">
+                    <td colSpan={5} className="px-6 py-16 text-center text-zinc-500 italic font-normal">
                       {loading ? 'Processing asset entries...' : 'No debit balances or logs initialized.'}
                     </td>
                   </tr>
@@ -560,6 +803,472 @@ export function DebitsPage() {
         </div>
 
       </div>
+
+      {/* Edit Debit Modal */}
+      {isEditOpen && editingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl relative animate-in zoom-in-95 duration-200 text-xs">
+            <div>
+              <h3 className="text-base font-semibold text-white flex items-center gap-2.5">
+                <Edit className="w-5 h-5 text-rose-400" />
+                Edit Expense Record
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">Modify current transaction values in the master ledger.</p>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              {/* Amount Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+                  Amount (₹) <span className="text-rose-400 font-bold ml-0.5">*</span>
+                </label>
+                <div className="relative w-full border border-zinc-800 rounded-xl bg-zinc-950 focus-within:border-rose-500/50 transition-all duration-150">
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    min="0.01"
+                    placeholder="0.00"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="w-full h-10 px-3 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Payment Node Dropdown */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+                    Payment Method
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditPaymentOpen(!isEditPaymentOpen)
+                      setIsEditPaidToOpen(false)
+                    }}
+                    className="w-full h-10 px-3 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 text-zinc-200 font-medium cursor-pointer"
+                  >
+                    <span className="text-xs truncate">
+                      {editPaymentMethod || 'Select Method'}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                  </button>
+
+                  {isEditPaymentOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsEditPaymentOpen(false)} />
+                      <div className="absolute left-0 top-[calc(100%+4px)] w-full bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl py-1 z-50 overflow-y-auto max-h-40">
+                        {paymentMethods.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setEditPaymentMethod(opt.value)
+                              setIsEditPaymentOpen(false)
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 cursor-pointer"
+                          >
+                            {opt.icon}
+                            <span>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Paid To Dropdown */}
+                <div className="space-y-1.5 relative">
+                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+                    Paid To / Category
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditPaidToOpen(!isEditPaidToOpen)
+                      setIsEditPaymentOpen(false)
+                    }}
+                    className="w-full h-10 px-3 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 text-zinc-200 font-medium cursor-pointer"
+                  >
+                    <span className="text-xs truncate">
+                      {editPaidTo || 'Select Category'}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                  </button>
+
+                  {isEditPaidToOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setIsEditPaidToOpen(false)} />
+                      <div className="absolute left-0 top-[calc(100%+4px)] w-full bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl py-1 z-50 overflow-y-auto max-h-40">
+                        {paidToOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setEditPaidTo(opt.value)
+                              setIsEditPaidToOpen(false)
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 cursor-pointer"
+                          >
+                            {opt.icon}
+                            <span>{opt.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Other Payment Method Text Input */}
+              {editPaymentMethod === 'Other' && (
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Specify Method</label>
+                  <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Specify payment method..."
+                      value={editOtherPaymentMethodText}
+                      onChange={(e) => setEditOtherPaymentMethodText(e.target.value)}
+                      className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none placeholder:text-zinc-700"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Other Paid To Text Input */}
+              {editPaidTo === 'Other' && (
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Specify Category</label>
+                  <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Specify custom category..."
+                      value={editOtherPaidToText}
+                      onChange={(e) => setEditOtherPaidToText(e.target.value)}
+                      className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none placeholder:text-zinc-700"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Date Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Date</label>
+                <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                  <input
+                    type="datetime-local"
+                    required
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none scheme-dark cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Note Field */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Note (Optional)</label>
+                <div className="w-full border border-zinc-800 rounded-xl bg-zinc-950">
+                  <textarea
+                    rows={2}
+                    placeholder="Transaction details..."
+                    value={editNote}
+                    onChange={(e) => setEditNote(e.target.value)}
+                    className="w-full px-3 py-2 bg-transparent border-none outline-none text-xs text-zinc-200 placeholder:text-zinc-700 resize-none font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditOpen(false)
+                    setEditingRecord(null)
+                  }}
+                  className="flex-1 h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || editButtonState === 'saving'}
+                  className={`flex-1 h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 ${
+                    editButtonState === 'saving'
+                      ? 'bg-zinc-850 text-zinc-500 border border-zinc-800/80 cursor-not-allowed'
+                      : editButtonState === 'saved'
+                      ? 'bg-rose-600 text-white'
+                      : editButtonState === 'error'
+                      ? 'bg-rose-600 text-white'
+                      : 'bg-white text-zinc-950 hover:bg-zinc-200'
+                  }`}
+                >
+                  {editButtonState === 'saving' ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : editButtonState === 'saved' ? (
+                    'Updated ✓'
+                  ) : editButtonState === 'error' ? (
+                    'Failed ✗'
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Debit Modal */}
+      {isDeleteOpen && deletingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/85 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-150 text-xs">
+            <div>
+              <h3 className="text-base font-semibold text-white flex items-center gap-2.5">
+                <Trash2 className="w-5 h-5 text-rose-500 animate-pulse" />
+                Confirm Expense Deletion
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">This operation is permanent. Please review the details below.</p>
+            </div>
+
+            <div className="bg-zinc-950/50 border border-zinc-800/60 rounded-xl p-4.5 space-y-3 font-medium text-zinc-300">
+              <div className="flex justify-between border-b border-zinc-800/40 pb-2">
+                <span className="text-zinc-500 font-normal">Amount:</span>
+                <span className="font-mono text-rose-455 font-bold">-₹{deletingRecord.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between border-b border-zinc-800/40 pb-2">
+                <span className="text-zinc-500 font-normal">Category / Paid to:</span>
+                <span>{deletingRecord['Paid to']}</span>
+              </div>
+              <div className="flex justify-between border-b border-zinc-800/40 pb-2">
+                <span className="text-zinc-500 font-normal">Payment Method:</span>
+                <span>{deletingRecord['Payment Method']}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500 font-normal">Date:</span>
+                <span className="font-mono">{formatDate(deletingRecord.Date)}</span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-zinc-200">Wallet Impact Notice</p>
+                <p className="text-[11px] leading-relaxed text-zinc-400">
+                  Deleting this expense will increase your wallet balance by <span className="text-emerald-400 font-bold font-mono">₹{deletingRecord.Amount.toLocaleString()}</span>. This change propagates to the unified cash flow ledger instantly.
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteOpen(false)
+                  setDeletingRecord(null)
+                }}
+                className="flex-1 h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent"
+              >
+                Keep Record
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={loading || deleteButtonState === 'deleting'}
+                className={`flex-1 h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 ${
+                  deleteButtonState === 'deleting'
+                    ? 'bg-rose-900/40 text-rose-450/50 border border-rose-900/60 cursor-not-allowed'
+                    : deleteButtonState === 'deleted'
+                    ? 'bg-zinc-800 text-zinc-500'
+                    : 'bg-rose-600 text-white hover:bg-rose-500'
+                }`}
+              >
+                {deleteButtonState === 'deleting' ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : deleteButtonState === 'deleted' ? (
+                  'Deleted ✓'
+                ) : deleteButtonState === 'error' ? (
+                  'Error ✗'
+                ) : (
+                  'Confirm Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Presets Modal */}
+      {isPresetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200 text-xs text-zinc-300">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+              <div>
+                <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-rose-400" />
+                  Customize Expense Presets
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">Define custom presets to autofill the record forms instantly.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPresetModalOpen(false)}
+                className="text-zinc-500 hover:text-white text-sm font-semibold p-1.5 hover:bg-zinc-800 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Existing Presets List */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Existing Presets</span>
+              <div className="border border-zinc-800/60 rounded-xl overflow-hidden divide-y divide-zinc-800/60 bg-zinc-950/50">
+                {presetItems.map((preset, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 px-4 hover:bg-zinc-900/30 transition-colors">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-white text-xs">{preset.label}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-zinc-800 border border-zinc-700/60 text-zinc-400 rounded-md">
+                          {preset.paidTo}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-zinc-500">
+                        Amount: <span className="font-mono font-medium text-rose-400">₹{preset.amount}</span>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePreset(idx)}
+                      className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-450 hover:text-rose-400 rounded-lg cursor-pointer transition-all active:scale-90"
+                      title="Delete Preset"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {presetItems.length === 0 && (
+                  <div className="p-6 text-center text-zinc-500 italic">No custom presets configured. Add one below!</div>
+                )}
+              </div>
+            </div>
+
+            {/* Add New Preset Form */}
+            <form onSubmit={handleAddPreset} className="space-y-4 pt-3 border-t border-zinc-800">
+              <span className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase block mb-1">Add New Preset</span>
+              
+              <div className="grid grid-cols-2 gap-3.5">
+                {/* Preset Label */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase">Preset Label</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 🍱 Lunch"
+                    value={newPresetLabel}
+                    onChange={(e) => setNewPresetLabel(e.target.value)}
+                    className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700"
+                  />
+                </div>
+
+                {/* Preset Amount */}
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase">Amount (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    min="0.01"
+                    placeholder="0.00"
+                    value={newPresetAmount}
+                    onChange={(e) => setNewPresetAmount(e.target.value)}
+                    className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700 font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Preset Paid To / Category */}
+              <div className="space-y-1 relative">
+                <label className="text-[10px] text-zinc-400 uppercase">Paid To / Category</label>
+                <button
+                  type="button"
+                  onClick={() => setIsNewPresetPaidToOpen(!isNewPresetPaidToOpen)}
+                  className="w-full h-10 px-3 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 text-zinc-200 font-medium cursor-pointer"
+                >
+                  <span className="text-xs truncate">{newPresetPaidTo}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                </button>
+
+                {isNewPresetPaidToOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsNewPresetPaidToOpen(false)} />
+                    <div className="absolute left-0 top-[calc(100%+4px)] w-full bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl py-1 z-50 overflow-y-auto max-h-40">
+                      {paidToOptions.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setNewPresetPaidTo(opt.value)
+                            setIsNewPresetPaidToOpen(false)
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-900 cursor-pointer"
+                        >
+                          <span>{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Other Paid To Specifier */}
+              {newPresetPaidTo === 'Other' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase">Specify Category</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Subscriptions"
+                    value={newPresetOtherPaidToText}
+                    onChange={(e) => setNewPresetOtherPaidToText(e.target.value)}
+                    className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700"
+                  />
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPresetModalOpen(false)}
+                  className="flex-1 h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent"
+                >
+                  Close Manager
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newPresetLabel || !newPresetAmount}
+                  className="flex-1 h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] bg-white text-zinc-950 hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed border border-zinc-800/80"
+                >
+                  Add Preset
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
