@@ -485,15 +485,15 @@ app.post('/api/ledger/debit', async (req, res) => {
   }
 })
 
-// Serve static assets from Vite build in production
-app.use(express.static(path.join(__dirname, '../dist')))
-
-// Wildcard routing to route all other requests to React index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'))
-})
-
 if (!process.env.VERCEL) {
+  // Serve static assets from Vite build in production
+  app.use(express.static(path.join(__dirname, '../dist')))
+
+  // Wildcard routing to route all other requests to React index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'))
+  })
+
   app.listen(PORT, () => {
     console.log(`Secure API Proxy Server running locally on http://localhost:${PORT}`)
   })
