@@ -37,6 +37,18 @@ const headers = {
 // -------------------------------------------------------------
 app.post('/api/auth/check', async (req, res) => {
   const { email } = req.body
+  
+  console.log('--- DIAGNOSTIC ENVIRONMENT LOG ---')
+  console.log('API_BASE_URL:', API_BASE_URL)
+  console.log('WORKSHEET_ID:', WORKSHEET_ID)
+  console.log('USER_VIEW_ID:', USER_VIEW_ID)
+  console.log('AUTH_TOKEN Length:', AUTH_TOKEN ? AUTH_TOKEN.length : 0)
+  console.log('AUTH_TOKEN Starts With Bearer:', AUTH_TOKEN ? AUTH_TOKEN.startsWith('Bearer ') : false)
+  if (AUTH_TOKEN) {
+    console.log('AUTH_TOKEN snippet:', AUTH_TOKEN.substring(0, 15) + '...' + AUTH_TOKEN.substring(AUTH_TOKEN.length - 10))
+  }
+  console.log('---------------------------------')
+
   if (!email) {
     return res.status(400).json({ success: false, message: 'Email is required' })
   }
