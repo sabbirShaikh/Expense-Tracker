@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { CreditsPage } from './pages/CreditsPage'
 import { DebitsPage } from './pages/DebitsPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { LandingPage } from './pages/LandingPage'
  
 export default function App() {
   return (
@@ -15,6 +16,9 @@ export default function App() {
       <LedgerProvider>
         <BrowserRouter>
           <Routes>
+            {/* Landing Page */}
+            <Route path="/" element={<LandingPage />} />
+
             {/* Public Onboarding/Auth Steps */}
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<LoginPage />} />

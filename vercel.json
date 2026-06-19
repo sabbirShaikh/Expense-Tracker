@@ -3,6 +3,11 @@
     {
       "source": "/api/:path*",
       "destination": "/api"
+    },
+    {
+      "source": "/((?!api|assets|favicon.svg|icons.svg|landing-page).*)",
+      "destination": "/index.html"
     }
   ]
 }
+
