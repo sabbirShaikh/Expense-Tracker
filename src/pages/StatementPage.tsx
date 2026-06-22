@@ -178,6 +178,13 @@ const getStatementLimitStatus = (state: StatementEmailLimitState, now: number) =
   }
 }
 
+const formatLocalDate = (date = new Date()) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function StatementPage() {
   const { unifiedRecords, loading } = useLedger()
   const { user, email } = useAuth()
@@ -186,10 +193,10 @@ export function StatementPage() {
   // Date range state
   const [startDate, setStartDate] = useState(() => {
     const d = new Date()
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+    return formatLocalDate(new Date(d.getFullYear(), d.getMonth(), 1))
   })
   const [endDate, setEndDate] = useState(() => {
-    return new Date().toISOString().slice(0, 10)
+    return formatLocalDate(new Date())
   })
 
   const [isSendingEmail, setIsSendingEmail] = useState(false)
@@ -304,20 +311,20 @@ export function StatementPage() {
     const today = new Date()
     setToast(null)
     if (preset === 'this-month') {
-      setStartDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10))
-      setEndDate(today.toISOString().slice(0, 10))
+      setStartDate(formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 1)))
+      setEndDate(formatLocalDate(today))
     } else if (preset === 'last-month') {
-      setStartDate(new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 10))
-      setEndDate(new Date(today.getFullYear(), today.getMonth(), 0).toISOString().slice(0, 10))
+      setStartDate(formatLocalDate(new Date(today.getFullYear(), today.getMonth() - 1, 1)))
+      setEndDate(formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 0)))
     } else if (preset === 'last-30') {
-      setStartDate(new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10))
-      setEndDate(today.toISOString().slice(0, 10))
+      setStartDate(formatLocalDate(new Date(today.getTime() - 30 * 86400000)))
+      setEndDate(formatLocalDate(today))
     } else if (preset === 'last-90') {
-      setStartDate(new Date(today.getTime() - 90 * 86400000).toISOString().slice(0, 10))
-      setEndDate(today.toISOString().slice(0, 10))
+      setStartDate(formatLocalDate(new Date(today.getTime() - 90 * 86400000)))
+      setEndDate(formatLocalDate(today))
     } else if (preset === 'this-year') {
-      setStartDate(new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10))
-      setEndDate(today.toISOString().slice(0, 10))
+      setStartDate(formatLocalDate(new Date(today.getFullYear(), 0, 1)))
+      setEndDate(formatLocalDate(today))
     }
   }
 
@@ -651,7 +658,7 @@ export function StatementPage() {
           <div className="text-[10.5px] text-zinc-400 leading-relaxed bg-zinc-900/40 border border-zinc-800/40 p-3 rounded-xl flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
             <div>
-              <span>PDF statements are rendered by Tablesprint and emailed to: </span>
+              <span>Statements are emailed to: </span>
               <strong className="text-zinc-200 font-semibold">{recipientEmail || 'No email found'}</strong>
               <p className="mt-1 text-zinc-500">
                 Limit: {STATEMENT_EMAIL_DAILY_LIMIT} emails per day with a {Math.floor(STATEMENT_EMAIL_COOLDOWN_MS / 60000)} minute cooldown.
