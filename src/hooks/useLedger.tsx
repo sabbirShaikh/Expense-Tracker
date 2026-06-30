@@ -102,7 +102,7 @@ export interface LedgerContextType {
 const LedgerContext = createContext<LedgerContextType | undefined>(undefined)
 
 export function LedgerProvider({ children }: { children: ReactNode }) {
-  const { user, email, refreshUser } = useAuth()
+  const { user, email, refreshUser, step } = useAuth()
   const [balance, setBalance] = useState<number>(0)
 
   // Sync user profile balance
@@ -114,10 +114,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   // Fetch latest user data on mount/email changes to sync the starting balance on load
   useEffect(() => {
-    if (email) {
+    if (email && step === 'dashboard') {
       refreshUser()
     }
-  }, [email, refreshUser])
+  }, [email, step, refreshUser])
 
   const [credits, setCredits] = useState<CreditRecord[]>([])
   const [debits, setDebits] = useState<DebitRecord[]>([])
@@ -428,12 +428,12 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   // Auto fetch when authenticated
   const isBalanceUnset = user?.Balance === null || user?.Balance === undefined
   useEffect(() => {
-    if (user && !isBalanceUnset) {
+    if (user && !isBalanceUnset && step === 'dashboard') {
       fetchUnifiedRecords()
       fetchCredits()
       fetchDebits()
     }
-  }, [user, isBalanceUnset, fetchUnifiedRecords, fetchCredits, fetchDebits])
+  }, [user, isBalanceUnset, step, fetchUnifiedRecords, fetchCredits, fetchDebits])
 
   return (
     <LedgerContext.Provider

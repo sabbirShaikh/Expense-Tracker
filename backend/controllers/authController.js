@@ -1,8 +1,19 @@
 import User from '../models/User.js';
 import { sendOTPEmail } from '../utils/mailer.js';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secure-secret-key-12345';
 
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+const sanitizeUser = (user) => {
+  if (!user) return null;
+  const userObj = typeof user.toObject === 'function' ? user.toObject() : { ...user };
+  delete userObj.OTP;
+  delete userObj.OTPExpires;
+  return userObj;
 };
 
 export const checkEmail = async (req, res) => {
@@ -27,7 +38,6 @@ export const checkEmail = async (req, res) => {
       return res.json({
         success: true,
         exists: true,
-        user,
         ...(process.env.DEVELOPMENT_MODE === 'true' ? { otp } : {})
       });
     } else {
@@ -65,7 +75,7 @@ export const registerUser = async (req, res) => {
       Phone: phone || '',
       Occupation: occupation || '',
       City: city || '',
-      Balance: 0,
+      Balance: null,
       OTP: otp,
       OTPExpires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
       LastLoginRequest: new Date()
@@ -76,7 +86,7 @@ export const registerUser = async (req, res) => {
 
     return res.json({
       success: true,
-      user: newUser,
+      user: sanitizeUser(newUser),
       ...(process.env.DEVELOPMENT_MODE === 'true' ? { otp } : {})
     });
   } catch (err) {
@@ -115,7 +125,9 @@ export const verifyOTP = async (req, res) => {
     user.OTPExpires = null;
     await user.save();
 
-    return res.json({ success: true, user });
+    const token = jwt.sign({ id: user._id, email: user.Email }, JWT_SECRET, { expiresIn: '7d' });
+
+    return res.json({ success: true, user: sanitizeUser(user), token });
   } catch (err) {
     console.error('Verify OTP Error:', err.message);
     return res.status(500).json({ success: false, message: err.message || 'Verification failed.' });
@@ -123,21 +135,22 @@ export const verifyOTP = async (req, res) => {
 };
 
 export const updateBalance = async (req, res) => {
-  const { userRowId, balance } = req.body;
-  if (!userRowId) {
+  const userId = req.user?.id || req.body.userRowId;
+  const { balance } = req.body;
+  if (!userId) {
     return res.status(400).json({ success: false, message: 'User ID is required' });
   }
 
   try {
-    const user = await User.findById(userRowId);
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
-    user.Balance = Number(balance);
+    user.Balance = Math.round(Number(balance) * 100) / 100;
     await user.save();
 
-    return res.json({ success: true, user });
+    return res.json({ success: true, user: sanitizeUser(user) });
   } catch (err) {
     console.error('Update Balance Error:', err.message);
     return res.status(500).json({ success: false, message: err.message || 'Failed to update balance.' });
@@ -145,13 +158,14 @@ export const updateBalance = async (req, res) => {
 };
 
 export const updateProfile = async (req, res) => {
-  const { userRowId, Name, Phone, Occupation, City, Address, Zipcode, State, Country } = req.body;
-  if (!userRowId) {
+  const userId = req.user?.id || req.body.userRowId;
+  const { Name, Phone, Occupation, City, Address, Zipcode, State, Country } = req.body;
+  if (!userId) {
     return res.status(400).json({ success: false, message: 'User ID is required' });
   }
 
   try {
-    const user = await User.findById(userRowId);
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
@@ -167,10 +181,23 @@ export const updateProfile = async (req, res) => {
 
     await user.save();
 
-    return res.json({ success: true, user });
+    return res.json({ success: true, user: sanitizeUser(user) });
   } catch (err) {
     console.error('Update Profile Error:', err.message);
     return res.status(500).json({ success: false, message: err.message || 'Failed to update profile.' });
   }
 };
-export default { checkEmail, registerUser, verifyOTP, updateBalance, updateProfile };
+
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    return res.json({ success: true, user: sanitizeUser(user) });
+  } catch (err) {
+    console.error('Get Me Error:', err.message);
+    return res.status(500).json({ success: false, message: err.message || 'Failed to retrieve user details.' });
+  }
+};
+export default { checkEmail, registerUser, verifyOTP, updateBalance, updateProfile, getMe };

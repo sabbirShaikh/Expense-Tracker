@@ -776,19 +776,39 @@ export function DashboardPage() {
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-zinc-950/40 text-zinc-400 font-medium tracking-wider uppercase text-[10px] border-b border-zinc-800/60">
+                <th className="px-6 py-3.5 text-left">Actions</th>
                 <th className="px-6 py-3.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-zinc-500" /> Date</th>
                 <th className="px-6 py-3.5">Purpose / Paid To</th>
                 <th className="px-6 py-3.5">Payment Node</th>
                 <th className="px-6 py-3.5 text-right">Debit (-)</th>
                 <th className="px-6 py-3.5 text-right">Credit (+)</th>
                 <th className="px-6 py-3.5 text-right">Running Balance</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/40 font-sans text-sm">
               {unifiedRecords.map((record) => (
                 <tr key={record._id} className="hover:bg-zinc-800/20 transition-colors">
                   
+                  {/* Actions */}
+                  <td className="px-6 py-4 text-left whitespace-nowrap">
+                    <div className="flex items-center justify-start gap-2">
+                      <button
+                        onClick={() => handleEditClick(record)}
+                        className="p-1.5 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300 hover:text-white rounded-lg cursor-pointer transition-all active:scale-90"
+                        title="Edit Transaction"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(record)}
+                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-450 hover:text-rose-450 rounded-lg cursor-pointer transition-all active:scale-90"
+                        title="Delete Transaction"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+
                   {/* Date */}
                   <td className="px-6 py-4 text-zinc-400 font-mono text-xs whitespace-nowrap">
                     {formatDate(record.Date)}
@@ -819,26 +839,6 @@ export function DashboardPage() {
                   {/* Running Balance */}
                   <td className="px-6 py-4 text-right font-mono font-bold text-white text-sm whitespace-nowrap">
                     ₹{record.Balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </td>
-
-                  {/* Actions */}
-                  <td className="px-6 py-4 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEditClick(record)}
-                        className="p-1.5 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300 hover:text-white rounded-lg cursor-pointer transition-all active:scale-90"
-                        title="Edit Transaction"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(record)}
-                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-450 hover:text-rose-450 rounded-lg cursor-pointer transition-all active:scale-90"
-                        title="Delete Transaction"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
                   </td>
                   
                 </tr>

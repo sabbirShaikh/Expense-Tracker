@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useLedger } from '../hooks/useLedger'
+import { useForm } from 'react-hook-form'
 import {
   User,
   Phone,
@@ -17,6 +18,17 @@ import {
   Hash
 } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
+
+interface ProfileFormInputs {
+  Name: string
+  Phone: string
+  Occupation: string
+  City: string
+  Address: string
+  Zipcode: string
+  State: string
+  Country: string
+}
 
 export function ProfilePage() {
   const {
@@ -37,35 +49,38 @@ export function ProfilePage() {
   const hasWarning = location.state?.balanceWarning
 
   const [initialBalanceInput, setInitialBalanceInput] = useState('')
-  const [profileForm, setProfileForm] = useState({
-    Name: '',
-    Phone: '',
-    Occupation: '',
-    City: '',
-    Address: '',
-    Zipcode: '',
-    State: '',
-    Country: '',
-    Balance: 0,
-  })
+  const [balanceInput, setBalanceInput] = useState('')
+  const [balanceSuccessMsg, setBalanceSuccessMsg] = useState(false)
   const [profileSuccessMsg, setProfileSuccessMsg] = useState(false)
+
+  // React Hook Form for profile details
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<ProfileFormInputs>({
+    defaultValues: {
+      Name: '',
+      Phone: '',
+      Occupation: '',
+      City: '',
+      Address: '',
+      Zipcode: '',
+      State: '',
+      Country: '',
+    }
+  })
 
   // Sync profile details
   useEffect(() => {
     if (user) {
-      setProfileForm({
-        Name: user.Name || '',
-        Phone: user.Phone || '',
-        Occupation: user.Occupation || '',
-        City: user.City || '',
-        Address: user.Address || '',
-        Zipcode: user.Zipcode || '',
-        State: user.State || '',
-        Country: user.Country || '',
-        Balance: user.Balance || 0,
-      })
+      setValue('Name', user.Name || '')
+      setValue('Phone', user.Phone || '')
+      setValue('Occupation', user.Occupation || '')
+      setValue('City', user.City || '')
+      setValue('Address', user.Address || '')
+      setValue('Zipcode', user.Zipcode || '')
+      setValue('State', user.State || '')
+      setValue('Country', user.Country || '')
+      setBalanceInput(user.Balance !== undefined && user.Balance !== null ? user.Balance.toString() : '')
     }
-  }, [user])
+  }, [user, setValue])
 
   const isGlobalLoading = authLoading || ledgerLoading
   const globalError = authError || ledgerError
@@ -82,27 +97,23 @@ export function ProfilePage() {
     }
   }
 
-  const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // 1. Update balance if it was edited
-    const updatedBalance = profileForm.Balance
-    let balanceSuccess = true
-    if (updatedBalance !== user?.Balance) {
-      balanceSuccess = await updateStartingBalance(updatedBalance)
-      if (balanceSuccess) {
-        setBalance(updatedBalance)
-      }
+  const onProfileSubmit = async (data: ProfileFormInputs) => {
+    const success = await updateProfile(data)
+    if (success) {
+      setProfileSuccessMsg(true)
+      setTimeout(() => setProfileSuccessMsg(false), 3000)
     }
+  }
 
-    // 2. Update the rest of the profile fields
-    if (balanceSuccess) {
-      const { Balance, ...profileFields } = profileForm
-      const success = await updateProfile(profileFields)
-      if (success) {
-        setProfileSuccessMsg(true)
-        setTimeout(() => setProfileSuccessMsg(false), 3000)
-      }
+  const handleBalanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const amt = parseFloat(balanceInput)
+    if (isNaN(amt)) return
+    const success = await updateStartingBalance(amt)
+    if (success) {
+      setBalance(amt)
+      setBalanceSuccessMsg(true)
+      setTimeout(() => setBalanceSuccessMsg(false), 3000)
     }
   }
 
@@ -154,7 +165,7 @@ export function ProfilePage() {
                   value={initialBalanceInput}
                   onChange={(e) => setInitialBalanceInput(e.target.value)}
                   disabled={isGlobalLoading}
-                  className="w-full h-11 pl-10 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                  className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                 />
               </div>
             </div>
@@ -162,7 +173,7 @@ export function ProfilePage() {
             <button
               type="submit"
               disabled={isGlobalLoading || !initialBalanceInput}
-              className="w-full h-11 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold shadow-md transition-all duration-150 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold shadow-md transition-all duration-150 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGlobalLoading ? (
                 <>
@@ -176,10 +187,68 @@ export function ProfilePage() {
           </form>
         </div>
       ) : (
-        /* Profile Edit Card */
-        <div className="max-w-3xl mx-auto">
+        /* Profile & Settings Layout */
+        <div className="max-w-3xl mx-auto space-y-6">
+          {/* Wallet Balance Edit Card */}
+          <div className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-6 md:p-8 space-y-6 shadow-xl shadow-black/40">
+            <div className="flex items-center gap-3.5 border-b border-zinc-800/80 pb-5">
+              <div className="p-3 bg-zinc-950 border border-zinc-800/80 rounded-xl text-indigo-400 shadow-inner">
+                <IndianRupee className="w-6 h-6 text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">Wallet Balance Settings</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">Directly adjust your current starting/total ledger balance.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleBalanceSubmit} className="space-y-6 text-xs">
+              <div className="space-y-1.5 max-w-sm">
+                <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Wallet Balance (₹)</label>
+                <div className="relative w-full border border-zinc-800 rounded-xl bg-zinc-950 focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all duration-150 shadow-inner flex items-center">
+                  <IndianRupee className="absolute left-3.5 w-4 h-4 text-zinc-500" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={balanceInput}
+                    onChange={(e) => setBalanceInput(e.target.value)}
+                    disabled={isGlobalLoading}
+                    className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-zinc-800/80">
+                <div className="w-full sm:w-auto h-11 flex items-center">
+                  {balanceSuccessMsg && (
+                    <div className="flex items-center gap-2.5 px-4 h-full bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm font-medium text-emerald-400 animate-in fade-in slide-in-from-left-2 duration-300 w-full sm:w-auto">
+                      <UserCheck className="w-4 h-4" />
+                      Wallet balance updated successfully.
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isGlobalLoading || !balanceInput}
+                  className="w-full sm:w-auto px-8 py-3 bg-white text-zinc-950 hover:bg-zinc-200 rounded-xl text-sm font-semibold shadow-md shadow-white/5 transition-all duration-150 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGlobalLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Balance'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Profile Details Card */}
           <div className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-6 md:p-8 space-y-8 shadow-xl shadow-black/40">
-            
             <div className="flex items-center gap-3.5 border-b border-zinc-800/80 pb-5">
               <div className="p-3 bg-zinc-950 border border-zinc-800/80 rounded-xl text-indigo-400 shadow-inner">
                 <User className="w-6 h-6 text-indigo-400" />
@@ -190,8 +259,7 @@ export function ProfilePage() {
               </div>
             </div>
 
-            <form onSubmit={handleProfileSubmit} className="space-y-6 text-xs">
-              
+            <form onSubmit={handleSubmit(onProfileSubmit)} className="space-y-6 text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Name */}
                 <div className="space-y-1.5">
@@ -200,14 +268,13 @@ export function ProfilePage() {
                     <User className="absolute left-3.5 w-4 h-4 text-zinc-500" />
                     <input
                       type="text"
-                      required
                       placeholder="Zulfekar Khan"
-                      value={profileForm.Name}
-                      onChange={(e) => setProfileForm({ ...profileForm, Name: e.target.value })}
                       disabled={isGlobalLoading}
-                      className="w-full h-11 pl-10 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                      {...register('Name', { required: 'Name is required' })}
+                      className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                     />
                   </div>
+                  {errors.Name && <span className="text-[11px] text-rose-400">{errors.Name.message}</span>}
                 </div>
 
                 {/* Phone */}
@@ -217,14 +284,13 @@ export function ProfilePage() {
                     <Phone className="absolute left-3.5 w-4 h-4 text-zinc-500" />
                     <input
                       type="tel"
-                      required
                       placeholder="+91 98765 43210"
-                      value={profileForm.Phone}
-                      onChange={(e) => setProfileForm({ ...profileForm, Phone: e.target.value })}
                       disabled={isGlobalLoading}
-                      className="w-full h-11 pl-10 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                      {...register('Phone', { required: 'Phone is required' })}
+                      className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                     />
                   </div>
+                  {errors.Phone && <span className="text-[11px] text-rose-400">{errors.Phone.message}</span>}
                 </div>
 
                 {/* Occupation */}
@@ -234,14 +300,13 @@ export function ProfilePage() {
                     <Briefcase className="absolute left-3.5 w-4 h-4 text-zinc-500" />
                     <input
                       type="text"
-                      required
                       placeholder="Frontend Developer"
-                      value={profileForm.Occupation}
-                      onChange={(e) => setProfileForm({ ...profileForm, Occupation: e.target.value })}
                       disabled={isGlobalLoading}
-                      className="w-full h-11 pl-10 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                      {...register('Occupation', { required: 'Occupation is required' })}
+                      className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                     />
                   </div>
+                  {errors.Occupation && <span className="text-[11px] text-rose-400">{errors.Occupation.message}</span>}
                 </div>
 
                 {/* City */}
@@ -251,32 +316,13 @@ export function ProfilePage() {
                     <MapPin className="absolute left-3.5 w-4 h-4 text-zinc-500" />
                     <input
                       type="text"
-                      required
                       placeholder="Bengaluru"
-                      value={profileForm.City}
-                      onChange={(e) => setProfileForm({ ...profileForm, City: e.target.value })}
                       disabled={isGlobalLoading}
-                      className="w-full h-11 pl-10 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                      {...register('City', { required: 'City is required' })}
+                      className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                     />
                   </div>
-                </div>
-
-                {/* Wallet Balance */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Wallet Balance (₹)</label>
-                  <div className="relative w-full border border-zinc-800 rounded-xl bg-zinc-950 focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all duration-150 shadow-inner flex items-center">
-                    <IndianRupee className="absolute left-3.5 w-4 h-4 text-zinc-500" />
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      placeholder="0.00"
-                      value={profileForm.Balance}
-                      onChange={(e) => setProfileForm({ ...profileForm, Balance: parseFloat(e.target.value) || 0 })}
-                      disabled={isGlobalLoading}
-                      className="w-full h-11 pl-10 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
-                    />
-                  </div>
+                  {errors.City && <span className="text-[11px] text-rose-400">{errors.City.message}</span>}
                 </div>
 
                 {/* State */}
@@ -287,15 +333,14 @@ export function ProfilePage() {
                     <input
                       type="text"
                       placeholder="Karnataka"
-                      value={profileForm.State}
-                      onChange={(e) => setProfileForm({ ...profileForm, State: e.target.value })}
                       disabled={isGlobalLoading}
-                      className="w-full h-11 pl-10 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                      {...register('State')}
+                      className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                     />
                   </div>
                 </div>
 
-                {/* Address */}
+                {/* Street Address */}
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">Street Address</label>
                   <div className="relative w-full border border-zinc-800 rounded-xl bg-zinc-950 focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all duration-150 shadow-inner flex items-center">
@@ -303,10 +348,9 @@ export function ProfilePage() {
                     <input
                       type="text"
                       placeholder="Block, building, apartment..."
-                      value={profileForm.Address}
-                      onChange={(e) => setProfileForm({ ...profileForm, Address: e.target.value })}
                       disabled={isGlobalLoading}
-                      className="w-full h-11 pl-10 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                      {...register('Address')}
+                      className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                     />
                   </div>
                 </div>
@@ -319,10 +363,9 @@ export function ProfilePage() {
                     <input
                       type="text"
                       placeholder="560001"
-                      value={profileForm.Zipcode}
-                      onChange={(e) => setProfileForm({ ...profileForm, Zipcode: e.target.value })}
                       disabled={isGlobalLoading}
-                      className="w-full h-11 pl-8 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                      {...register('Zipcode')}
+                      className="w-full py-3 md:py-2.5 pl-8 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                     />
                   </div>
                 </div>
@@ -335,14 +378,12 @@ export function ProfilePage() {
                     <input
                       type="text"
                       placeholder="India"
-                      value={profileForm.Country}
-                      onChange={(e) => setProfileForm({ ...profileForm, Country: e.target.value })}
                       disabled={isGlobalLoading}
-                      className="w-full h-11 pl-8 pr-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                      {...register('Country')}
+                      className="w-full py-3 md:py-2.5 pl-8 pr-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                     />
                   </div>
                 </div>
-
               </div>
 
               {/* System Identifiers Divider */}
@@ -362,7 +403,7 @@ export function ProfilePage() {
                         readOnly
                         disabled
                         value={user?.Email || ''}
-                        className="w-full h-11 pl-10 pr-3.5 text-zinc-400 text-sm bg-transparent outline-none border-none font-medium"
+                        className="w-full py-3 md:py-2.5 pl-10 pr-3.5 text-zinc-400 text-base md:text-sm bg-transparent outline-none border-none font-medium"
                       />
                     </div>
                   </div>
@@ -382,8 +423,8 @@ export function ProfilePage() {
 
                 <button
                   type="submit"
-                  disabled={isGlobalLoading || !profileForm.Name || !profileForm.Phone || !profileForm.Occupation || !profileForm.City}
-                  className="w-full sm:w-auto px-8 h-11 bg-white text-zinc-950 hover:bg-zinc-200 rounded-xl text-sm font-semibold shadow-md shadow-white/5 transition-all duration-150 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isGlobalLoading}
+                  className="w-full sm:w-auto px-8 py-3 bg-white text-zinc-950 hover:bg-zinc-200 rounded-xl text-sm font-semibold shadow-md shadow-white/5 transition-all duration-150 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isGlobalLoading ? (
                     <>
@@ -395,7 +436,6 @@ export function ProfilePage() {
                   )}
                 </button>
               </div>
-
             </form>
           </div>
         </div>
@@ -404,7 +444,7 @@ export function ProfilePage() {
       {/* Global Footer Metadata */}
       <footer className="mt-12 text-center flex flex-col items-center justify-center gap-2 relative z-10 opacity-70 hover:opacity-100 transition-opacity duration-200">
         <div className="flex items-center justify-center gap-3 text-xs text-zinc-500 font-medium">
-          <span>Table Sprint AI Client</span>
+          <span>Ledger Workspace Client</span>
           <span className="w-1 h-1 rounded-full bg-zinc-600" />
           <span className="flex items-center gap-1.5 font-mono text-zinc-400">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

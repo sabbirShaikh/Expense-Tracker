@@ -381,7 +381,7 @@ export function BorrowLendPage() {
                   placeholder="e.g. John Doe"
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all font-medium"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 md:h-11 pl-11 pr-4 text-base md:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/10 transition-all font-medium"
                 />
               </div>
             </div>
@@ -401,7 +401,7 @@ export function BorrowLendPage() {
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all font-medium font-mono"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 md:h-11 pl-11 pr-4 text-base md:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/10 transition-all font-medium font-mono"
                 />
               </div>
             </div>
@@ -420,7 +420,7 @@ export function BorrowLendPage() {
                   id="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 pl-11 pr-4 text-xs text-zinc-100 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all font-semibold font-mono"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 md:h-11 pl-11 pr-4 text-base md:text-sm text-zinc-100 focus:outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/10 transition-all font-semibold font-mono"
                 />
               </div>
             </div>
@@ -436,7 +436,7 @@ export function BorrowLendPage() {
                 placeholder="e.g. Dinner share, office rent loan"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-3 px-4 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all font-medium"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl h-12 md:h-11 px-4 text-base md:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/10 transition-all font-medium"
               />
             </div>
 
@@ -503,15 +503,33 @@ export function BorrowLendPage() {
                 <table className="w-full text-left border-collapse min-w-[500px]">
                   <thead>
                     <tr className="border-b border-zinc-800/60 font-mono">
+                      <th className="pb-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-left">Actions</th>
                       <th className="pb-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Contact / Purpose</th>
                       <th className="pb-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500">Type</th>
                       <th className="pb-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-right">Amount</th>
-                      <th className="pb-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-800/40">
                     {activeLoans.map((loan) => (
                       <tr key={loan.id} className="group hover:bg-zinc-900/10 transition-colors">
+                        <td className="py-4 text-left">
+                          <div className="flex items-center justify-start gap-2.5">
+                            <button
+                              onClick={() => setSettleTarget(loan)}
+                              className="px-2.5 h-7 bg-zinc-950 hover:bg-indigo-600 border border-zinc-800/80 hover:border-indigo-500 text-zinc-300 hover:text-white text-[10px] font-bold rounded-lg transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-sm"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span>Settle</span>
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(loan)}
+                              className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer"
+                              title="Delete loan row"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                         <td className="py-4 pr-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800/60 flex items-center justify-center text-[11px] font-bold text-zinc-400 font-mono shrink-0">
@@ -537,24 +555,6 @@ export function BorrowLendPage() {
                         </td>
                         <td className="py-4 text-right pr-4 font-bold text-xs font-mono text-zinc-200">
                           ₹{loan.amount.toLocaleString('en-IN')}
-                        </td>
-                        <td className="py-4 text-right">
-                          <div className="flex items-center justify-end gap-2.5">
-                            <button
-                              onClick={() => setSettleTarget(loan)}
-                              className="px-2.5 h-7 bg-zinc-950 hover:bg-indigo-600 border border-zinc-800/80 hover:border-indigo-500 text-zinc-300 hover:text-white text-[10px] font-bold rounded-lg transition-all duration-150 flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-sm"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              <span>Settle</span>
-                            </button>
-                            <button
-                              onClick={() => setDeleteTarget(loan)}
-                              className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer"
-                              title="Delete loan row"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
                         </td>
                       </tr>
                     ))}

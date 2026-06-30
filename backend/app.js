@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import authController from './controllers/authController.js';
 import ledgerController from './controllers/ledgerController.js';
 import statementController from './controllers/statementController.js';
+import auth from './middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,26 +15,29 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Auth routes
+// Auth routes (Public)
 app.post('/api/auth/check', authController.checkEmail);
 app.post('/api/auth/register', authController.registerUser);
 app.post('/api/auth/verify', authController.verifyOTP);
-app.post('/api/auth/balance', authController.updateBalance);
-app.post('/api/auth/profile', authController.updateProfile);
 
-// Ledger routes
-app.post('/api/ledger/credits', ledgerController.getCredits);
-app.post('/api/ledger/debits', ledgerController.getDebits);
-app.post('/api/ledger/unified', ledgerController.getUnified);
-app.post('/api/ledger/credit', ledgerController.addCredit);
-app.post('/api/ledger/debit', ledgerController.addDebit);
-app.post('/api/ledger/credit/delete', ledgerController.deleteCredit);
-app.post('/api/ledger/debit/delete', ledgerController.deleteDebit);
-app.post('/api/ledger/credit/update', ledgerController.updateCredit);
-app.post('/api/ledger/debit/update', ledgerController.updateDebit);
+// Auth routes (Protected)
+app.post('/api/auth/me', auth, authController.getMe);
+app.post('/api/auth/balance', auth, authController.updateBalance);
+app.post('/api/auth/profile', auth, authController.updateProfile);
 
-// Statement routes
-app.post('/api/statement/email', statementController.sendStatement);
+// Ledger routes (Protected)
+app.post('/api/ledger/credits', auth, ledgerController.getCredits);
+app.post('/api/ledger/debits', auth, ledgerController.getDebits);
+app.post('/api/ledger/unified', auth, ledgerController.getUnified);
+app.post('/api/ledger/credit', auth, ledgerController.addCredit);
+app.post('/api/ledger/debit', auth, ledgerController.addDebit);
+app.post('/api/ledger/credit/delete', auth, ledgerController.deleteCredit);
+app.post('/api/ledger/debit/delete', auth, ledgerController.deleteDebit);
+app.post('/api/ledger/credit/update', auth, ledgerController.updateCredit);
+app.post('/api/ledger/debit/update', auth, ledgerController.updateDebit);
+
+// Statement routes (Protected)
+app.post('/api/statement/email', auth, statementController.sendStatement);
 
 // Mock webhook endpoint for local development
 app.post('/api/mock-webhook', (req, res) => {

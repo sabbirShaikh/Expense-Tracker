@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema({
   },
   Balance: {
     type: Number,
-    default: 0
+    default: null
   },
   OTP: {
     type: String,

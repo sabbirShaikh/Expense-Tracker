@@ -433,7 +433,7 @@ export function CreditsPage() {
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
                   disabled={loading}
-                  className="w-full h-11 px-3.5 text-zinc-100 text-sm bg-transparent outline-none border-none pr-10 font-medium placeholder:text-zinc-600"
+                  className="w-full h-12 md:h-11 px-3.5 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none pr-10 font-medium placeholder:text-zinc-600"
                 />
               </div>
             </div>
@@ -451,7 +451,7 @@ export function CreditsPage() {
                     setIsPurposeOpen(false)
                   }}
                   disabled={loading}
-                  className="w-full h-11 px-3.5 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 transition-all duration-150 text-zinc-200 font-medium cursor-pointer focus:border-zinc-700 focus:ring-2 focus:ring-zinc-800"
+                  className="w-full h-12 md:h-11 px-3.5 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 transition-all duration-150 text-zinc-200 text-base md:text-sm font-medium cursor-pointer focus:border-zinc-700 focus:ring-2 focus:ring-zinc-800"
                 >
                   <div className="flex items-center gap-2.5">
                     {sourceOptions.find(o => o.value === selectedSourceOfPayment)?.icon}
@@ -496,7 +496,7 @@ export function CreditsPage() {
                     value={otherSourceText}
                     onChange={(e) => setOtherSourceText(e.target.value)}
                     disabled={loading}
-                    className="w-full h-11 px-3.5 text-zinc-200 text-sm bg-transparent outline-none border-none placeholder:text-zinc-600"
+                    className="w-full h-12 md:h-11 px-3.5 text-zinc-200 text-base md:text-sm bg-transparent outline-none border-none placeholder:text-zinc-600"
                   />
                 </div>
               </div>
@@ -591,7 +591,7 @@ export function CreditsPage() {
               <label className="text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
                 Date <span className="text-emerald-400 font-bold ml-0.5">*</span>
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative flex-1 border border-zinc-800 rounded-xl bg-zinc-950 focus-within:border-zinc-700 transition-all duration-150 flex items-center">
                   <input
                     type="datetime-local"
@@ -599,13 +599,13 @@ export function CreditsPage() {
                     value={dateInput}
                     onChange={(e) => setDateInput(e.target.value)}
                     disabled={loading}
-                    className="w-full h-11 px-3.5 text-zinc-200 text-sm bg-transparent outline-none border-none font-medium text-left cursor-pointer scheme-dark"
+                    className="w-full h-12 md:h-11 px-3.5 text-zinc-200 text-base md:text-sm bg-transparent outline-none border-none font-medium text-left cursor-pointer scheme-dark"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => setDateInput(getLocalDateTimeString())}
-                  className="px-4 h-11 border border-zinc-800 hover:border-zinc-700 rounded-xl bg-zinc-950 hover:bg-zinc-900 text-zinc-300 text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95"
+                  className="w-full sm:w-auto px-4 h-12 md:h-11 border border-zinc-800 hover:border-zinc-700 rounded-xl bg-zinc-950 hover:bg-zinc-900 text-zinc-300 text-base md:text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center justify-center"
                 >
                   Now
                 </button>
@@ -683,17 +683,35 @@ export function CreditsPage() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-zinc-950/40 text-zinc-400 font-medium tracking-wider uppercase text-[10px] border-b border-zinc-800/60">
+                  <th className="px-6 py-3.5 text-left">Actions</th>
                   <th className="px-6 py-3.5 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-zinc-500" /> Date</th>
                   <th className="px-6 py-3.5">Category</th>
                   <th className="px-6 py-3.5">Credited From</th>
                   <th className="px-6 py-3.5">Payment Node</th>
                   <th className="px-6 py-3.5 text-right">Net Amount</th>
-                  <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/40 font-sans text-sm">
                 {credits.map((record) => (
                   <tr key={record._id} className="hover:bg-zinc-800/20 transition-colors">
+                    <td className="px-6 py-4 text-left whitespace-nowrap">
+                      <div className="flex items-center justify-start gap-2">
+                        <button
+                          onClick={() => handleEditClick(record)}
+                          className="p-1.5 bg-zinc-800/60 hover:bg-zinc-805 border border-zinc-700/60 text-zinc-300 hover:text-white rounded-lg cursor-pointer transition-all active:scale-90"
+                          title="Edit Transaction"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(record)}
+                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-450 hover:text-rose-450 rounded-lg cursor-pointer transition-all active:scale-90"
+                          title="Delete Transaction"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-zinc-400 font-mono text-xs whitespace-nowrap">
                       {formatDate(record.Date)}
                     </td>
@@ -712,24 +730,6 @@ export function CreditsPage() {
                     </td>
                     <td className="px-6 py-4 text-right font-mono font-bold text-emerald-400 text-sm whitespace-nowrap">
                       +₹{record.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEditClick(record)}
-                          className="p-1.5 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300 hover:text-white rounded-lg cursor-pointer transition-all active:scale-90"
-                          title="Edit Transaction"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(record)}
-                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-450 hover:text-rose-450 rounded-lg cursor-pointer transition-all active:scale-90"
-                          title="Delete Transaction"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -774,7 +774,7 @@ export function CreditsPage() {
                     placeholder="0.00"
                     value={editAmount}
                     onChange={(e) => setEditAmount(e.target.value)}
-                    className="w-full h-10 px-3 text-zinc-100 text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
+                    className="w-full h-12 md:h-10 px-3 text-zinc-100 text-base md:text-sm bg-transparent outline-none border-none font-medium placeholder:text-zinc-600"
                   />
                 </div>
               </div>
@@ -791,7 +791,7 @@ export function CreditsPage() {
                       setIsEditSourceOpen(!isEditSourceOpen)
                       setIsEditPurposeOpen(false)
                     }}
-                    className="w-full h-10 px-3 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 text-zinc-200 font-medium cursor-pointer"
+                    className="w-full h-12 md:h-10 px-3 text-left flex items-center justify-between border border-zinc-800 rounded-xl bg-zinc-950 hover:bg-zinc-900/40 text-zinc-200 text-base md:text-sm font-medium cursor-pointer"
                   >
                     <span className="text-xs truncate">
                       {editSourceOfPayment || 'Select Source'}
@@ -876,7 +876,7 @@ export function CreditsPage() {
                       placeholder="Specify custom source..."
                       value={editOtherSourceText}
                       onChange={(e) => setEditOtherSourceText(e.target.value)}
-                      className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none placeholder:text-zinc-700"
+                      className="w-full h-12 md:h-10 px-3 text-zinc-200 text-base md:text-xs bg-transparent outline-none border-none placeholder:text-zinc-700"
                     />
                   </div>
                 </div>
@@ -923,7 +923,7 @@ export function CreditsPage() {
                     required
                     value={editDate}
                     onChange={(e) => setEditDate(e.target.value)}
-                    className="w-full h-10 px-3 text-zinc-200 text-xs bg-transparent outline-none border-none scheme-dark cursor-pointer"
+                    className="w-full h-12 md:h-10 px-3 text-zinc-200 text-base md:text-xs bg-transparent outline-none border-none scheme-dark cursor-pointer"
                   />
                 </div>
               </div>
@@ -950,14 +950,14 @@ export function CreditsPage() {
                     setIsEditOpen(false)
                     setEditingRecord(null)
                   }}
-                  className="flex-1 h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent"
+                  className="flex-1 h-12 md:h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-300 text-base md:text-sm font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading || editButtonState === 'saving'}
-                  className={`flex-1 h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 h-12 md:h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5 ${
                     editButtonState === 'saving'
                       ? 'bg-zinc-850 text-zinc-500 border border-zinc-800/80 cursor-not-allowed'
                       : editButtonState === 'saved'
@@ -1138,7 +1138,7 @@ export function CreditsPage() {
                     placeholder="e.g. 💼 Salary"
                     value={newPresetLabel}
                     onChange={(e) => setNewPresetLabel(e.target.value)}
-                    className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700"
+                    className="w-full h-12 md:h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 text-base md:text-sm outline-none placeholder:text-zinc-700 focus:border-zinc-700"
                   />
                 </div>
 
@@ -1153,7 +1153,7 @@ export function CreditsPage() {
                     placeholder="0.00"
                     value={newPresetAmount}
                     onChange={(e) => setNewPresetAmount(e.target.value)}
-                    className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-zinc-700 font-mono"
+                    className="w-full h-12 md:h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 text-base md:text-sm outline-none placeholder:text-zinc-700 focus:border-zinc-700 font-mono"
                   />
                 </div>
               </div>
@@ -1234,7 +1234,7 @@ export function CreditsPage() {
                 <button
                   type="submit"
                   disabled={!newPresetLabel || !newPresetAmount}
-                  className="flex-1 h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] bg-white text-zinc-950 hover:bg-zinc-200 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed border border-zinc-800/80"
+                  className="flex-1 h-12 md:h-10 rounded-xl font-semibold transition-all cursor-pointer active:scale-[0.98] bg-white text-zinc-950 hover:bg-zinc-200 text-base md:text-sm disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed border border-zinc-800/80"
                 >
                   Add Preset
                 </button>

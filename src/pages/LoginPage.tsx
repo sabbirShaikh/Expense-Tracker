@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { useForm } from 'react-hook-form'
 import {
   Mail,
   Lock,
@@ -13,6 +14,21 @@ import {
   Sparkles
 } from 'lucide-react'
 
+interface EmailFormInputs {
+  email: string
+}
+
+interface OtpFormInputs {
+  otp: string
+}
+
+interface RegisterFormInputs {
+  Name: string
+  Phone: string
+  Occupation: string
+  City: string
+}
+
 export function LoginPage() {
   const {
     email,
@@ -25,49 +41,47 @@ export function LoginPage() {
     setStep,
   } = useAuth()
 
-  const [emailInput, setEmailInput] = useState('')
-  const [otpInput, setOtpInput] = useState('')
-  const [registerForm, setRegisterForm] = useState({
-    Name: '',
-    Phone: '',
-    Occupation: '',
-    City: '',
+  // Forms setup
+  const { register: registerEmail, handleSubmit: handleEmailSubmit, setValue: setEmailValue, formState: { errors: emailErrors } } = useForm<EmailFormInputs>()
+  const { register: registerOtp, handleSubmit: handleOtpSubmit, setValue: setOtpValue, watch: watchOtp, formState: { errors: otpErrors } } = useForm<OtpFormInputs>()
+  const { register: registerFields, handleSubmit: handleRegisterSubmit, formState: { errors: registerErrors } } = useForm<RegisterFormInputs>({
+    defaultValues: {
+      Name: '',
+      Phone: '',
+      Occupation: '',
+      City: '',
+    }
   })
 
   // Sync email input
   useEffect(() => {
     if (email) {
-      setEmailInput(email)
+      setEmailValue('email', email)
     }
-  }, [email])
+  }, [email, setEmailValue])
 
-  // Reset OTP input when step changes
+  // Reset OTP when step changes
   useEffect(() => {
-    setOtpInput('')
-  }, [step])
+    setOtpValue('otp', '')
+  }, [step, setOtpValue])
 
-  const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!emailInput.trim()) return
-    checkEmail(emailInput.trim())
+  const onEmailSubmit = (data: EmailFormInputs) => {
+    checkEmail(data.email.trim())
   }
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (otpInput.length !== 6) return
-    await verifyOtpCode(otpInput)
+  const onOtpSubmit = async (data: OtpFormInputs) => {
+    if (data.otp.length !== 6) return
+    await verifyOtpCode(data.otp)
   }
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!registerForm.Name || !registerForm.Phone || !registerForm.Occupation || !registerForm.City) {
-      return
-    }
+  const onRegisterSubmit = (data: RegisterFormInputs) => {
     prepareRegister({
       Email: email,
-      ...registerForm,
+      ...data,
     })
   }
+
+  const otpValue = watchOtp('otp') || ''
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 relative overflow-x-hidden font-sans select-none">
@@ -91,7 +105,7 @@ export function LoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 block">
                   Email Address
@@ -100,14 +114,15 @@ export function LoginPage() {
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type="email"
-                    required
                     placeholder="name@company.com"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
                     disabled={authLoading}
-                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-sm text-zinc-100 placeholder-zinc-650 focus:outline-none transition-colors disabled:opacity-50"
+                    {...registerEmail('email', { required: 'Email is required' })}
+                    className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-base md:text-sm text-zinc-100 placeholder-zinc-650 focus:outline-none transition-colors disabled:opacity-50"
                   />
                 </div>
+                {emailErrors.email && (
+                  <span className="text-[11px] text-rose-400">{emailErrors.email.message}</span>
+                )}
               </div>
 
               {authError && (
@@ -119,8 +134,8 @@ export function LoginPage() {
 
               <button
                 type="submit"
-                disabled={authLoading || !emailInput}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                disabled={authLoading}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold hover:shadow-lg hover:shadow-indigo-500/20 transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {authLoading ? (
                   <>
@@ -152,7 +167,7 @@ export function LoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handleOtpSubmit} className="space-y-4">
+            <form onSubmit={handleOtpSubmit(onOtpSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 block">
                   One-Time Password (OTP)
@@ -161,15 +176,22 @@ export function LoginPage() {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type="text"
-                    required
                     maxLength={6}
                     placeholder="Enter 6-digit code"
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
                     disabled={authLoading}
-                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-sm tracking-widest font-mono text-zinc-100 placeholder-zinc-750 focus:outline-none transition-colors disabled:opacity-50"
+                    {...registerOtp('otp', {
+                      required: 'OTP is required',
+                      minLength: { value: 6, message: 'OTP must be 6 digits' },
+                      onChange: (e) => {
+                        setOtpValue('otp', e.target.value.replace(/\D/g, ''))
+                      }
+                    })}
+                    className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-base md:text-sm tracking-widest font-mono text-zinc-100 placeholder-zinc-750 focus:outline-none transition-colors disabled:opacity-50"
                   />
                 </div>
+                {otpErrors.otp && (
+                  <span className="text-[11px] text-rose-400">{otpErrors.otp.message}</span>
+                )}
               </div>
 
               {authError && (
@@ -181,8 +203,8 @@ export function LoginPage() {
 
               <button
                 type="submit"
-                disabled={authLoading || otpInput.length !== 6}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                disabled={authLoading || otpValue.length !== 6}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {authLoading ? (
                   <>
@@ -214,7 +236,7 @@ export function LoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handleRegisterSubmit} className="space-y-4">
+            <form onSubmit={handleRegisterSubmit(onRegisterSubmit)} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                   Full Name
@@ -223,14 +245,15 @@ export function LoginPage() {
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type="text"
-                    required
                     placeholder="John Doe"
-                    value={registerForm.Name}
-                    onChange={(e) => setRegisterForm({ ...registerForm, Name: e.target.value })}
                     disabled={authLoading}
-                    className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-sm text-zinc-100 placeholder-zinc-750 focus:outline-none transition-colors disabled:opacity-50"
+                    {...registerFields('Name', { required: 'Name is required' })}
+                    className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-base md:text-sm text-zinc-100 placeholder-zinc-750 focus:outline-none transition-colors disabled:opacity-50"
                   />
                 </div>
+                {registerErrors.Name && (
+                  <span className="text-[11px] text-rose-400">{registerErrors.Name.message}</span>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -241,14 +264,15 @@ export function LoginPage() {
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type="tel"
-                    required
                     placeholder="919876543210"
-                    value={registerForm.Phone}
-                    onChange={(e) => setRegisterForm({ ...registerForm, Phone: e.target.value })}
                     disabled={authLoading}
-                    className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none transition-colors disabled:opacity-50"
+                    {...registerFields('Phone', { required: 'Phone is required' })}
+                    className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-base md:text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none transition-colors disabled:opacity-50"
                   />
                 </div>
+                {registerErrors.Phone && (
+                  <span className="text-[11px] text-rose-400">{registerErrors.Phone.message}</span>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -259,14 +283,15 @@ export function LoginPage() {
                   <Briefcase className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type="text"
-                    required
                     placeholder="Software Engineer"
-                    value={registerForm.Occupation}
-                    onChange={(e) => setRegisterForm({ ...registerForm, Occupation: e.target.value })}
                     disabled={authLoading}
-                    className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none transition-colors disabled:opacity-50"
+                    {...registerFields('Occupation', { required: 'Occupation is required' })}
+                    className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-base md:text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none transition-colors disabled:opacity-50"
                   />
                 </div>
+                {registerErrors.Occupation && (
+                  <span className="text-[11px] text-rose-400">{registerErrors.Occupation.message}</span>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -277,14 +302,15 @@ export function LoginPage() {
                   <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type="text"
-                    required
                     placeholder="Bangalore"
-                    value={registerForm.City}
-                    onChange={(e) => setRegisterForm({ ...registerForm, City: e.target.value })}
                     disabled={authLoading}
-                    className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none transition-colors disabled:opacity-50"
+                    {...registerFields('City', { required: 'City is required' })}
+                    className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-base md:text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none transition-colors disabled:opacity-50"
                   />
                 </div>
+                {registerErrors.City && (
+                  <span className="text-[11px] text-rose-400">{registerErrors.City.message}</span>
+                )}
               </div>
 
               <div className="space-y-1.5 opacity-60">
@@ -297,7 +323,7 @@ export function LoginPage() {
                     type="email"
                     readOnly
                     value={email}
-                    className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-zinc-400 focus:outline-none"
+                    className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-zinc-900 border border-zinc-800 rounded-lg text-base md:text-sm text-zinc-400 focus:outline-none"
                   />
                 </div>
               </div>
@@ -312,7 +338,7 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={authLoading}
-                className="w-full py-2.5 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-3 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {authLoading ? (
                   <>
@@ -344,7 +370,7 @@ export function LoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handleOtpSubmit} className="space-y-4">
+            <form onSubmit={handleOtpSubmit(onOtpSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 block">
                   Registration OTP
@@ -353,15 +379,22 @@ export function LoginPage() {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500" />
                   <input
                     type="text"
-                    required
                     maxLength={6}
                     placeholder="Enter 6-digit code"
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
                     disabled={authLoading}
-                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-sm tracking-widest font-mono text-zinc-100 placeholder-zinc-750 focus:outline-none transition-colors disabled:opacity-50"
+                    {...registerOtp('otp', {
+                      required: 'OTP is required',
+                      minLength: { value: 6, message: 'OTP must be 6 digits' },
+                      onChange: (e) => {
+                        setOtpValue('otp', e.target.value.replace(/\D/g, ''))
+                      }
+                    })}
+                    className="w-full pl-10 pr-4 py-3 md:py-2.5 bg-zinc-950 border border-zinc-800 focus:border-indigo-500/80 rounded-lg text-base md:text-sm tracking-widest font-mono text-zinc-100 placeholder-zinc-750 focus:outline-none transition-colors disabled:opacity-50"
                   />
                 </div>
+                {otpErrors.otp && (
+                  <span className="text-[11px] text-rose-400">{otpErrors.otp.message}</span>
+                )}
               </div>
 
               {authError && (
@@ -373,8 +406,8 @@ export function LoginPage() {
 
               <button
                 type="submit"
-                disabled={authLoading || otpInput.length !== 6}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                disabled={authLoading || otpValue.length !== 6}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {authLoading ? (
                   <>

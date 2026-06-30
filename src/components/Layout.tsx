@@ -19,6 +19,7 @@ export function Layout() {
   const { user, logout } = useAuth()
   const location = useLocation()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   const isBalanceUnset = user?.Balance === null || user?.Balance === undefined
 
@@ -138,7 +139,7 @@ export function Layout() {
         </div>
 
         <button
-          onClick={logout}
+          onClick={() => setShowLogoutConfirm(true)}
           className="w-full flex items-center justify-center gap-2.5 px-4 h-10 bg-zinc-900 hover:bg-zinc-800 hover:border-rose-500/30 hover:text-rose-400 text-zinc-400 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer active:scale-95 border border-zinc-800/80 relative z-10"
         >
           <LogOut className="w-3.5 h-3.5" />
@@ -207,6 +208,47 @@ export function Layout() {
           </div>
         </main>
       </div>
+
+      {/* Logout Confirmation Dialog Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop blur mask */}
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowLogoutConfirm(false)} />
+          
+          {/* Modal box */}
+          <div className="relative w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200 space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-500 shrink-0">
+                <LogOut className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-zinc-100">Sign Out</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Are you sure you want to log out of your session? You will need to request a new OTP to sign back in.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 h-10 border border-zinc-800 hover:border-zinc-700 rounded-xl text-zinc-350 hover:text-white font-semibold cursor-pointer active:scale-[0.98] transition-all bg-transparent text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  logout();
+                }}
+                className="flex-1 h-10 rounded-xl font-semibold bg-rose-600 hover:bg-rose-500 text-white text-xs cursor-pointer active:scale-[0.98] transition-all shadow-md shadow-rose-600/10"
+              >
+                Confirm Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -2,6 +2,27 @@ import { createContext, useContext, useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import axios from 'axios'
 
+// Global Axios Request Interceptor for JWT Authorization
+axios.interceptors.request.use(
+  (config) => {
+    const saved = localStorage.getItem('expense_tracker_user')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed && parsed.token) {
+          config.headers.Authorization = `Bearer ${parsed.token}`
+        }
+      } catch (err) {
+        console.error('Error parsing token from localStorage:', err)
+      }
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
 export interface UserProfile {
   _id?: string
   Name: string
@@ -15,6 +36,7 @@ export interface UserProfile {
   State?: string
   Country?: string
   OTP?: string
+  token?: string
 }
 
 export type AuthStep = 'email' | 'otp' | 'register' | 'register-otp' | 'dashboard'
@@ -80,10 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const response = await axios.post('/api/auth/check', { email: inputEmail })
-      const { exists, user: foundUser } = response.data
+      const { exists } = response.data
 
       if (exists) {
-        setUser(foundUser)
         setStep('otp')
       } else {
         setStep('register')
@@ -96,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // 2. Prepare register flow (creates row in Tablesprint, which fires OTP workflow)
+  // 2. Prepare register flow (registers user in database and generates OTP workflow)
   const prepareRegister = async (formData: Omit<UserProfile, '_id' | 'Balance'>) => {
     setLoading(true)
     setError(null)
@@ -118,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // 3. Verify OTP code (instructs backend proxy to fetch user row from Tablesprint and match)
+  // 3. Verify OTP code (instructs backend to verify OTP code)
   const verifyOtpCode = async (enteredOtp: string): Promise<boolean> => {
     setLoading(true)
     setError(null)
@@ -131,10 +152,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.data?.success) {
         const verifiedUser = response.data.user
-        setUser(verifiedUser)
+        const token = response.data.token
+        const userWithToken = { ...verifiedUser, token }
+        setUser(userWithToken)
         
         // Save to localStorage for session persistence
-        localStorage.setItem('expense_tracker_user', JSON.stringify(verifiedUser))
+        localStorage.setItem('expense_tracker_user', JSON.stringify(userWithToken))
         
         setStep('dashboard')
         return true
@@ -160,11 +183,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         balance: newBalance,
       })
       if (response.data?.success) {
-        const updatedUser = { ...user, Balance: newBalance }
-        setUser(updatedUser)
-        
-        // Update localStorage
-        localStorage.setItem('expense_tracker_user', JSON.stringify(updatedUser))
+        const returnedUser = response.data.user
+        setUser((prev) => {
+          const updated = { ...prev, ...returnedUser }
+          localStorage.setItem('expense_tracker_user', JSON.stringify(updated))
+          return updated
+        })
         return true
       }
       return false
@@ -188,11 +212,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...updatedFields,
       })
       if (response.data?.success) {
-        const updatedUser = { ...user, ...updatedFields }
-        setUser(updatedUser)
-        
-        // Update localStorage
-        localStorage.setItem('expense_tracker_user', JSON.stringify(updatedUser))
+        const returnedUser = response.data.user
+        setUser((prev) => {
+          const updated = { ...prev, ...returnedUser }
+          localStorage.setItem('expense_tracker_user', JSON.stringify(updated))
+          return updated
+        })
         return true
       }
       return false
@@ -207,18 +232,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 6. Refresh User details from the database
   const refreshUser = useCallback(async () => {
-    if (!email) return
     try {
-      const response = await axios.post('/api/auth/check', { email })
-      const { exists, user: foundUser } = response.data
-      if (exists && foundUser) {
-        setUser(foundUser)
-        localStorage.setItem('expense_tracker_user', JSON.stringify(foundUser))
+      const response = await axios.post('/api/auth/me')
+      const { success, user: foundUser } = response.data
+      if (success && foundUser) {
+        const currentUser = localStorage.getItem('expense_tracker_user')
+        let token = ''
+        if (currentUser) {
+          try {
+            token = JSON.parse(currentUser).token || ''
+          } catch {}
+        }
+        const updatedUser = { ...foundUser, token }
+        setUser(updatedUser)
+        localStorage.setItem('expense_tracker_user', JSON.stringify(updatedUser))
       }
     } catch (err) {
       console.error('Failed to refresh user profile:', err)
     }
-  }, [email])
+  }, [])
 
   // Log out
   const logout = () => {

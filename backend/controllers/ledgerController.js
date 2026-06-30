@@ -4,7 +4,7 @@ import Unified from '../models/Unified.js';
 import User from '../models/User.js';
 
 export const getCredits = async (req, res) => {
-  const { email } = req.body;
+  const email = req.user?.email || req.body.email;
   if (!email) {
     return res.status(400).json({ success: false, message: 'Email is required' });
   }
@@ -22,7 +22,7 @@ export const getCredits = async (req, res) => {
 };
 
 export const getDebits = async (req, res) => {
-  const { email } = req.body;
+  const email = req.user?.email || req.body.email;
   if (!email) {
     return res.status(400).json({ success: false, message: 'Email is required' });
   }
@@ -40,7 +40,7 @@ export const getDebits = async (req, res) => {
 };
 
 export const getUnified = async (req, res) => {
-  const { email } = req.body;
+  const email = req.user?.email || req.body.email;
   if (!email) {
     return res.status(400).json({ success: false, message: 'Email is required' });
   }
@@ -58,12 +58,25 @@ export const getUnified = async (req, res) => {
 };
 
 export const addCredit = async (req, res) => {
-  const { email, userRowId, currentBalance, amount, purpose, creditedFrom, sourceOfPayment, note, date } = req.body;
+  const email = req.user?.email || req.body.email;
+  const userRowId = req.user?.id || req.body.userRowId;
+  const { currentBalance, amount, purpose, creditedFrom, sourceOfPayment, note, date } = req.body;
+  if (!email || !userRowId) {
+    return res.status(400).json({ success: false, message: 'Authenticated user session is required.' });
+  }
   const normalizedEmail = email.trim().toLowerCase();
   const amtVal = Number(amount);
-  const newBalance = Number(currentBalance) + amtVal;
+  const newBalance = Math.round((Number(currentBalance) + amtVal) * 100) / 100;
 
   try {
+    const user = await User.findById(userRowId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    if (user.Balance === null || user.Balance === undefined) {
+      return res.status(400).json({ success: false, message: 'Please set your starting balance on the profile page before recording transactions.' });
+    }
+
     // 1. Create Credit record
     const newCredit = new Credit({
       Email: normalizedEmail,
@@ -100,12 +113,25 @@ export const addCredit = async (req, res) => {
 };
 
 export const addDebit = async (req, res) => {
-  const { email, userRowId, currentBalance, amount, paymentMethod, paidTo, note, date } = req.body;
+  const email = req.user?.email || req.body.email;
+  const userRowId = req.user?.id || req.body.userRowId;
+  const { currentBalance, amount, paymentMethod, paidTo, note, date } = req.body;
+  if (!email || !userRowId) {
+    return res.status(400).json({ success: false, message: 'Authenticated user session is required.' });
+  }
   const normalizedEmail = email.trim().toLowerCase();
   const amtVal = Number(amount);
-  const newBalance = Number(currentBalance) - amtVal;
+  const newBalance = Math.round((Number(currentBalance) - amtVal) * 100) / 100;
 
   try {
+    const user = await User.findById(userRowId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    if (user.Balance === null || user.Balance === undefined) {
+      return res.status(400).json({ success: false, message: 'Please set your starting balance on the profile page before recording transactions.' });
+    }
+
     // 1. Create Debit record
     const newDebit = new Debit({
       Email: normalizedEmail,
@@ -140,7 +166,12 @@ export const addDebit = async (req, res) => {
 };
 
 export const deleteCredit = async (req, res) => {
-  const { email, userRowId, creditRowId, amount, purpose, date } = req.body;
+  const email = req.user?.email || req.body.email;
+  const userRowId = req.user?.id || req.body.userRowId;
+  const { creditRowId, amount, purpose, date } = req.body;
+  if (!email || !userRowId) {
+    return res.status(400).json({ success: false, message: 'Authenticated user session is required.' });
+  }
   const normalizedEmail = email.trim().toLowerCase();
   const amtVal = Number(amount);
 
@@ -161,7 +192,7 @@ export const deleteCredit = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    const newBalance = user.Balance - amtVal;
+    const newBalance = Math.round((user.Balance - amtVal) * 100) / 100;
     user.Balance = newBalance;
     await user.save();
 
@@ -173,7 +204,12 @@ export const deleteCredit = async (req, res) => {
 };
 
 export const deleteDebit = async (req, res) => {
-  const { email, userRowId, debitRowId, amount, purpose, date } = req.body;
+  const email = req.user?.email || req.body.email;
+  const userRowId = req.user?.id || req.body.userRowId;
+  const { debitRowId, amount, purpose, date } = req.body;
+  if (!email || !userRowId) {
+    return res.status(400).json({ success: false, message: 'Authenticated user session is required.' });
+  }
   const normalizedEmail = email.trim().toLowerCase();
   const amtVal = Number(amount);
 
@@ -194,7 +230,7 @@ export const deleteDebit = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    const newBalance = user.Balance + amtVal;
+    const newBalance = Math.round((user.Balance + amtVal) * 100) / 100;
     user.Balance = newBalance;
     await user.save();
 
@@ -206,9 +242,9 @@ export const deleteDebit = async (req, res) => {
 };
 
 export const updateCredit = async (req, res) => {
+  const email = req.user?.email || req.body.email;
+  const userRowId = req.user?.id || req.body.userRowId;
   const {
-    email,
-    userRowId,
     creditRowId,
     oldAmount,
     newAmount,
@@ -221,6 +257,9 @@ export const updateCredit = async (req, res) => {
     note
   } = req.body;
 
+  if (!email || !userRowId) {
+    return res.status(400).json({ success: false, message: 'Authenticated user session is required.' });
+  }
   const normalizedEmail = email.trim().toLowerCase();
   const oldAmtVal = Number(oldAmount);
   const newAmtVal = Number(newAmount);
@@ -251,7 +290,7 @@ export const updateCredit = async (req, res) => {
       unifiedRecord['Source of Payment'] = sourceOfPayment;
       unifiedRecord.Purpose = newPurpose;
       unifiedRecord.Credit = newAmtVal;
-      unifiedRecord.Balance = unifiedRecord.Balance + diff;
+      unifiedRecord.Balance = Math.round((unifiedRecord.Balance + diff) * 100) / 100;
       await unifiedRecord.save();
     }
 
@@ -260,7 +299,7 @@ export const updateCredit = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    const newBalance = user.Balance + diff;
+    const newBalance = Math.round((user.Balance + diff) * 100) / 100;
     user.Balance = newBalance;
     await user.save();
 
@@ -272,9 +311,9 @@ export const updateCredit = async (req, res) => {
 };
 
 export const updateDebit = async (req, res) => {
+  const email = req.user?.email || req.body.email;
+  const userRowId = req.user?.id || req.body.userRowId;
   const {
-    email,
-    userRowId,
     debitRowId,
     oldAmount,
     newAmount,
@@ -287,6 +326,9 @@ export const updateDebit = async (req, res) => {
     note
   } = req.body;
 
+  if (!email || !userRowId) {
+    return res.status(400).json({ success: false, message: 'Authenticated user session is required.' });
+  }
   const normalizedEmail = email.trim().toLowerCase();
   const oldAmtVal = Number(oldAmount);
   const newAmtVal = Number(newAmount);
@@ -315,7 +357,7 @@ export const updateDebit = async (req, res) => {
       unifiedRecord['Source of Payment'] = paymentMethod;
       unifiedRecord.Purpose = paidTo;
       unifiedRecord.Debit = newAmtVal;
-      unifiedRecord.Balance = unifiedRecord.Balance - diff;
+      unifiedRecord.Balance = Math.round((unifiedRecord.Balance - diff) * 100) / 100;
       await unifiedRecord.save();
     }
 
@@ -324,7 +366,7 @@ export const updateDebit = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    const newBalance = user.Balance - diff;
+    const newBalance = Math.round((user.Balance - diff) * 100) / 100;
     user.Balance = newBalance;
     await user.save();
 
