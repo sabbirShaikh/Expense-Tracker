@@ -5,7 +5,9 @@ import { fileURLToPath } from 'url';
 import authController from './controllers/authController.js';
 import ledgerController from './controllers/ledgerController.js';
 import statementController from './controllers/statementController.js';
+import * as supportController from './controllers/supportController.js';
 import auth from './middleware/auth.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +40,11 @@ app.post('/api/ledger/debit/update', auth, ledgerController.updateDebit);
 
 // Statement routes (Protected)
 app.post('/api/statement/email', auth, statementController.sendStatement);
+
+// Support routes
+app.post('/api/support/public', supportController.handlePublicSupport);
+app.post('/api/support/user', auth, supportController.handleUserSupport);
+
 
 // Mock webhook endpoint for local development
 app.post('/api/mock-webhook', (req, res) => {

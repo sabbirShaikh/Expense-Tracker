@@ -11,6 +11,8 @@ import { ProfilePage } from './pages/ProfilePage'
 import { LandingPage } from './pages/LandingPage'
 import { BorrowLendPage } from './pages/BorrowLendPage'
 import { StatementPage } from './pages/StatementPage'
+import { SupportPage } from './pages/SupportPage'
+
  
 export default function App() {
   return (
@@ -35,6 +37,7 @@ export default function App() {
                 <Route path="/debts" element={<BorrowLendPage />} />
                 <Route path="/statement" element={<StatementPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/support" element={<SupportPage />} />
               </Route>
             </Route>
 

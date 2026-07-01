@@ -135,6 +135,10 @@ const OrderIcon = () => (
 const LentIcon = () => <Handshake className="w-4 h-4 text-indigo-400 shrink-0" />
 
 export function DebitsPage() {
+  useEffect(() => {
+    document.title = 'Expenses & Spendings | WalletInsights'
+  }, [])
+
   const {
     debits,
     loading,
@@ -195,7 +199,7 @@ export function DebitsPage() {
 
   useEffect(() => {
     if (!email) return
-    const stored = localStorage.getItem(`ledgerflow_presets_debit_${email}`)
+    const stored = localStorage.getItem(`walletinsights_presets_debit_${email}`)
     if (stored) {
       try {
         setPresetItems(JSON.parse(stored))
@@ -204,7 +208,7 @@ export function DebitsPage() {
       }
     } else {
       setPresetItems(DEFAULT_DEBIT_PRESETS)
-      localStorage.setItem(`ledgerflow_presets_debit_${email}`, JSON.stringify(DEFAULT_DEBIT_PRESETS))
+      localStorage.setItem(`walletinsights_presets_debit_${email}`, JSON.stringify(DEFAULT_DEBIT_PRESETS))
     }
   }, [email])
 
@@ -223,7 +227,7 @@ export function DebitsPage() {
     const updated = [...presetItems, newPreset]
     setPresetItems(updated)
     if (email) {
-      localStorage.setItem(`ledgerflow_presets_debit_${email}`, JSON.stringify(updated))
+      localStorage.setItem(`walletinsights_presets_debit_${email}`, JSON.stringify(updated))
     }
 
     // Reset form
@@ -237,7 +241,7 @@ export function DebitsPage() {
     const updated = presetItems.filter((_, idx) => idx !== indexToDelete)
     setPresetItems(updated)
     if (email) {
-      localStorage.setItem(`ledgerflow_presets_debit_${email}`, JSON.stringify(updated))
+      localStorage.setItem(`walletinsights_presets_debit_${email}`, JSON.stringify(updated))
     }
   }
 
@@ -295,7 +299,7 @@ export function DebitsPage() {
 
     if (success !== null) {
       if (selectedPaidTo === 'Lent / Loan') {
-        const storageKey = `ledgerflow_peer_loans_${email}`
+        const storageKey = `walletinsights_peer_loans_${email}`
         let list = []
         try {
           const stored = localStorage.getItem(storageKey)

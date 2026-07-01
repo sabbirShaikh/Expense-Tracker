@@ -4,7 +4,6 @@ import {
   Sparkles,
   ArrowUpRight,
   ArrowDownRight,
-  ShieldAlert,
   Layers,
   RefreshCw,
   GitMerge,
@@ -13,7 +12,6 @@ import {
   Wallet,
   CheckCircle2,
   Lock,
-  Unlock,
   Trash2,
   Edit2,
   Info,
@@ -26,9 +24,51 @@ import {
 import './LandingPage.css'
 
 export function LandingPage() {
-  // Balance lock card state
-  const [locked, setLocked] = useState(true)
   const [lockAmount, setLockAmount] = useState(50000)
+
+  // Public Q&A State
+  const [activeQaIdx, setActiveQaIdx] = useState<number | null>(null);
+
+  // Public Support Form State
+  const [supportName, setSupportName] = useState('');
+  const [supportEmail, setSupportEmail] = useState('');
+  const [supportSubject, setSupportSubject] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportStatus, setSupportStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  const handleSupportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supportName || !supportEmail || !supportSubject || !supportMessage) return;
+
+    setSupportStatus('sending');
+    try {
+      const res = await fetch('/api/support/public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: supportName,
+          email: supportEmail,
+          subject: supportSubject,
+          message: supportMessage
+        })
+      });
+
+      if (res.ok) {
+        setSupportStatus('sent');
+        setSupportName('');
+        setSupportEmail('');
+        setSupportSubject('');
+        setSupportMessage('');
+        setTimeout(() => setSupportStatus('idle'), 4000);
+      } else {
+        setSupportStatus('error');
+        setTimeout(() => setSupportStatus('idle'), 4000);
+      }
+    } catch (err) {
+      setSupportStatus('error');
+      setTimeout(() => setSupportStatus('idle'), 4000);
+    }
+  };
 
   // Interactive playground state
   const [pgAmount, setPgAmount] = useState('')
@@ -59,7 +99,7 @@ export function LandingPage() {
   const [peerTxs, setPeerTxs] = useState<PeerTx[]>([
     { name: 'Alex Johnson', type: 'borrowed', amt: 15000, purpose: 'Shared Server Hosting', status: 'pending' },
     { name: 'Sarah Miller', type: 'lent', amt: 12000, purpose: 'API Integration Project', status: 'pending' },
-    { name: 'Dave Wilson', type: 'lent', amt: 4500, purpose: 'SaaS Figma UI Assets', status: 'resolved' },
+    { name: 'Dave Wilson', type: 'lent', amt: 4500, purpose: 'Figma Design Assets', status: 'resolved' },
     { name: 'Jessica Taylor', type: 'borrowed', amt: 3200, purpose: 'API Key Shared Billing', status: 'pending' },
   ])
 
@@ -116,6 +156,10 @@ export function LandingPage() {
   }
 
   useEffect(() => {
+    document.title = "WalletInsights — Track Income, Expenses & Friends' Debits"
+  }, [])
+
+  useEffect(() => {
     if (showToast) {
       const timer = setTimeout(() => setShowToast(false), 2500)
       return () => clearTimeout(timer)
@@ -136,7 +180,7 @@ export function LandingPage() {
   ]
 
   return (
-    <div className="landing-body min-h-screen bg-[#fcfcfd] font-['Manrope',sans-serif] text-zinc-800 selection:bg-indigo-100 scroll-smooth antialiased">
+    <div className="landing-body min-h-screen bg-[#fcfcfd] font-['Manrope',sans-serif] text-zinc-800 selection:bg-indigo-100 scroll-smooth antialiased overflow-x-hidden">
       
       {/* ============ NAV ============ */}
       <header className="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-white/80 border-b border-zinc-200/50">
@@ -146,7 +190,7 @@ export function LandingPage() {
               <Sparkles className="w-4 h-4 text-indigo-600" />
             </div>
             <span className="font-extrabold text-[16px] tracking-tight text-zinc-900">
-              Ledger<span className="text-indigo-600 font-medium">Flow</span>
+              Wallet<span className="text-indigo-600 font-medium">Insights</span>
             </span>
           </div>
 
@@ -156,6 +200,7 @@ export function LandingPage() {
             <a href="#lending" className="nav-link hover:text-zinc-900 transition-colors">Debt Settlement</a>
             <a href="#comparison" className="nav-link hover:text-zinc-900 transition-colors">Compare</a>
             <a href="#playground" className="nav-link hover:text-zinc-900 transition-colors">Sandbox Demo</a>
+            <a href="#support-section" className="nav-link hover:text-zinc-900 transition-colors">Support</a>
           </nav>
 
           <Link
@@ -176,16 +221,16 @@ export function LandingPage() {
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-zinc-200/80 text-[12px] font-semibold text-zinc-600 mb-6 shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span>
-            Real-Time Cloud Ledgering · Zero Configuration
+            Income, Expense, and Debt Management Workspace
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.1] text-zinc-950">
-            Master Your SaaS Cash Flow,<br />
-            <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Line by Line, Peer to Peer.</span>
+            Manage All Your Money, Expenses,<br />
+            <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">and Peer Loans in One Place.</span>
           </h1>
 
           <p className="mt-5 text-zinc-500 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-medium">
-            LedgerFlow is a developer-first expense tracker offering starting balance locks, unified transaction histories, peer-to-peer lending trackers, and automated category breakdowns.
+            WalletInsights is a complete financial workspace. Set starting balances, log daily earnings and spendings, manage loans you lend or borrow, create quick buttons for daily items, and email PDF reports.
           </p>
 
           <div className="mt-8 flex items-center justify-center gap-4 flex-wrap">
@@ -214,30 +259,30 @@ export function LandingPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-300"></span>
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-300"></span>
                 </div>
-                <span className="font-['JetBrains_Mono',monospace] text-[11px] text-zinc-400 font-semibold">workspace / ledgerflow.live</span>
+                <span className="font-['JetBrains_Mono',monospace] text-[11px] text-zinc-400 font-semibold">workspace / walletinsights.live</span>
               </div>
 
               <div className="grid md:grid-cols-3 gap-4 mb-5">
                 <div className="bg-zinc-50 border border-zinc-150 rounded-xl p-4 transition-all duration-[300ms] hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-100/40">
-                  <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase mb-1.5">Total Wallet Balance</p>
+                  <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase mb-1.5 font-mono">Current Cash Balance</p>
                   <p className="text-2xl font-bold font-['JetBrains_Mono',monospace] text-zinc-900">₹1,84,250.00</p>
                   <p className="text-[10px] text-zinc-500 mt-1">as of today, 6:42 PM</p>
                 </div>
                 
                 <div className="bg-zinc-50 border border-zinc-150 rounded-xl p-4 transition-all duration-[300ms] hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-100/40">
                   <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase mb-1.5 flex items-center gap-1.5">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" /> Total Credits
+                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" /> Total Earnings (Inflow)
                   </p>
                   <p className="text-2xl font-bold font-['JetBrains_Mono',monospace] text-emerald-600">₹2,40,000.00</p>
-                  <p className="text-[10px] text-zinc-500 mt-1">12 inflows this month</p>
+                  <p className="text-[10px] text-zinc-500 mt-1">12 incomes this month</p>
                 </div>
 
                 <div className="bg-zinc-50 border border-zinc-150 rounded-xl p-4 transition-all duration-[300ms] hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-100/40">
                   <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase mb-1.5 flex items-center gap-1.5">
-                    <ArrowDownRight className="w-3.5 h-3.5 text-rose-600" /> Total Debits
+                    <ArrowDownRight className="w-3.5 h-3.5 text-rose-600" /> Total Spendings (Outflow)
                   </p>
                   <p className="text-2xl font-bold font-['JetBrains_Mono',monospace] text-rose-600">₹55,750.00</p>
-                  <p className="text-[10px] text-zinc-500 mt-1">28 outflows this month</p>
+                  <p className="text-[10px] text-zinc-500 mt-1">28 expenses this month</p>
                 </div>
               </div>
 
@@ -278,31 +323,24 @@ export function LandingPage() {
       <section id="features" className="relative px-6 py-24 max-w-7xl mx-auto border-b border-zinc-100">
         <div className="mb-14 max-w-xl">
           <p className="text-indigo-600 text-[12px] font-bold tracking-[0.2em] uppercase mb-2.5">Core Features</p>
-          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900">Simple budget tracking, built for modern SaaS.</h2>
+          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900">Complete money tracking, built for everyone.</h2>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
 
-          {/* Card A: Balance Lock */}
+          {/* Card A: Starting Balance Settings */}
           <div className="md:col-span-1 md:row-span-2 bg-white border border-zinc-200/80 rounded-2xl p-6 transition-all duration-[300ms] hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-zinc-200/30 flex flex-col group">
             <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center mb-5">
-              <ShieldAlert className="w-5 h-5 text-indigo-600" />
+              <Wallet className="w-5 h-5 text-indigo-600" />
             </div>
-            <h3 className="font-extrabold text-[17px] text-zinc-900 mb-2">Starting Balance Lock</h3>
-            <p className="text-zinc-500 text-[13px] leading-relaxed mb-6 font-medium">Configure your opening balance once. It locks in place to guarantee all upcoming ledger logs compute accurate balances — preventing drift.</p>
+            <h3 className="font-extrabold text-[17px] text-zinc-900 mb-2">Adjustable Starting Balance</h3>
+            <p className="text-zinc-500 text-[13px] leading-relaxed mb-6 font-medium">Configure your starting balance during signup or update it anytime directly from your settings. The system automatically recalculates all ledger entries on the fly.</p>
 
             <div className="mt-auto bg-zinc-50 border border-zinc-150 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-450">
-                  {locked ? 'Locked' : 'Unlocked — set starting balance'}
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 font-mono">
+                  Fully Adjustable Sandbox
                 </span>
-                <button
-                  onClick={() => setLocked(!locked)}
-                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-500 flex items-center gap-1"
-                >
-                  {locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                  <span>{locked ? 'Unlock' : 'Lock'}</span>
-                </button>
               </div>
               <p className="font-['JetBrains_Mono',monospace] text-xl font-bold text-zinc-900 mb-3">
                 {fmtINR(lockAmount)}
@@ -314,8 +352,7 @@ export function LandingPage() {
                 step="500"
                 value={lockAmount}
                 onChange={(e) => setLockAmount(Number(e.target.value))}
-                className="w-full"
-                disabled={locked}
+                className="w-full cursor-pointer accent-indigo-600"
               />
             </div>
           </div>
@@ -327,8 +364,8 @@ export function LandingPage() {
                 <div className="w-10 h-10 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center mb-4">
                   <Layers className="w-5 h-5 text-violet-600" />
                 </div>
-                <h3 className="font-extrabold text-[17px] text-zinc-900 mb-1">Unified Transaction Ledger</h3>
-                <p className="text-zinc-500 text-[13px] leading-relaxed max-w-md font-medium">Credits and debits flow automatically into one running balance — removing the need for separate books or manual updates.</p>
+                <h3 className="font-extrabold text-[17px] text-zinc-900 mb-1">Unified Transaction History</h3>
+                <p className="text-zinc-500 text-[13px] leading-relaxed max-w-md font-medium">Incomes and expenses flow automatically into one running list sorted by date. View the exact payment method (like PhonePe, Cash, or Cards) to keep your ledger organized.</p>
               </div>
             </div>
             
@@ -436,7 +473,7 @@ export function LandingPage() {
               Monthly Category-Wise Distribution
             </h2>
             <p className="text-zinc-500 text-sm md:text-base leading-relaxed mb-6 font-medium">
-              Understand exactly where your cash flow originates and goes. LedgerFlow aggregates transaction entries to present monthly breakdowns of income and expense categories instantly.
+              Understand exactly where your cash flow originates and goes. WalletInsights aggregates transaction entries to present monthly breakdowns of income and expense categories instantly.
             </p>
             <div className="flex flex-col gap-4">
               <div className="flex items-start gap-3">
@@ -524,7 +561,7 @@ export function LandingPage() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                        <span className="text-zinc-700">Software & Tools (SaaS)</span>
+                        <span className="text-zinc-700">Software & Online Tools</span>
                         <span className="text-zinc-900 font-bold">₹18,000.00 (32%)</span>
                       </div>
                       <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
@@ -583,8 +620,8 @@ export function LandingPage() {
       <section id="lending" className="relative px-6 py-24 max-w-7xl mx-auto border-b border-zinc-100">
         <div className="grid lg:grid-cols-12 gap-12 items-center">
           
-          <div className="lg:col-span-7 order-last lg:order-first">
-            <div className="relative bg-white border border-zinc-200 rounded-2xl p-5 md:p-6 shadow-xl shadow-zinc-200/30">
+          <div className="lg:col-span-7 order-last lg:order-first min-w-0 w-full">
+            <div className="relative bg-white border border-zinc-200 rounded-2xl p-5 md:p-6 shadow-xl shadow-zinc-200/30 overflow-hidden">
               <div className="flex items-center justify-between pb-4 border-b border-zinc-100 mb-5">
                 <span className="text-[13px] font-extrabold text-zinc-800 flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-zinc-400" />
@@ -594,7 +631,7 @@ export function LandingPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-semibold">
+                <table className="w-full text-left text-xs font-semibold min-w-[650px]">
                   <thead>
                     <tr className="text-zinc-400 border-b border-zinc-100 uppercase tracking-wider">
                       <th className="pb-2.5">Peer Name</th>
@@ -651,7 +688,7 @@ export function LandingPage() {
               Peer lending & Borrow / Lend Tracker
             </h2>
             <p className="text-zinc-500 text-sm md:text-base leading-relaxed mb-6 font-medium">
-              Don't lose track of money you borrowed from colleagues or lent to friends. LedgerFlow comes with a built-in debt tracker to log peer-to-peer flows and clear them with a single click as soon as payments settle.
+              Don't lose track of money you borrowed from colleagues or lent to friends. WalletInsights comes with a built-in debt tracker to log peer-to-peer flows and clear them with a single click as soon as payments settle.
             </p>
             <div className="flex flex-col gap-3.5 text-sm text-zinc-600 font-medium">
               <p>✔ Log peer-to-peer debts alongside your main business balances.</p>
@@ -666,21 +703,21 @@ export function LandingPage() {
       {/* ============ COMPARISON SECTION ============ */}
       <section id="comparison" className="relative px-6 py-24 max-w-7xl mx-auto border-b border-zinc-100">
         <div className="text-center mb-16">
-          <p className="text-indigo-600 text-[12px] font-bold tracking-[0.2em] uppercase mb-2.5">Why LedgerFlow</p>
-          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900">How LedgerFlow Compares</h2>
+          <p className="text-indigo-600 text-[12px] font-bold tracking-[0.2em] uppercase mb-2.5">Why WalletInsights</p>
+          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900">How WalletInsights Compares</h2>
           <p className="text-zinc-500 max-w-lg mx-auto text-sm font-medium mt-2">
-            See why developers and small teams prefer LedgerFlow over traditional apps and fragile manual spreadsheets.
+            See why developers and small teams prefer WalletInsights over traditional apps and fragile manual spreadsheets.
           </p>
         </div>
 
         <div className="bg-white border border-zinc-200 rounded-2xl shadow-xl shadow-zinc-200/30 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs md:text-sm">
+            <table className="w-full text-left border-collapse text-xs md:text-sm min-w-[650px]">
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-200 text-zinc-650 font-bold">
                   <th className="p-4.5 font-extrabold">Feature / Capability</th>
                   <th className="p-4.5 font-extrabold text-indigo-650 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" /> LedgerFlow
+                    <Sparkles className="w-3.5 h-3.5" /> WalletInsights
                   </th>
                   <th className="p-4.5 font-extrabold text-zinc-500">Other Apps</th>
                   <th className="p-4.5 font-extrabold text-zinc-500">Spreadsheets</th>
@@ -694,9 +731,9 @@ export function LandingPage() {
                   <td className="p-4.5 text-zinc-500 font-medium">Free / License required</td>
                 </tr>
                 <tr className="hover:bg-zinc-50/40">
-                  <td className="p-4.5">Starting Balance Lock</td>
+                  <td className="p-4.5">Starting Balance Adjustment</td>
                   <td className="p-4.5 text-emerald-600 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" /> Yes (Absolute drift protection)
+                    <CheckCircle2 className="w-4 h-4" /> Yes (Change settings at any time)
                   </td>
                   <td className="p-4.5 text-rose-500 font-bold">No (Manual reconciliations)</td>
                   <td className="p-4.5 text-rose-500 font-bold">No (Accidental cell edits)</td>
@@ -743,17 +780,17 @@ export function LandingPage() {
       <section id="crud" className="relative px-6 py-24 max-w-7xl mx-auto border-b border-zinc-100">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <p className="text-indigo-600 text-[12px] font-bold tracking-[0.2em] uppercase mb-2.5">Flexible Bookkeeping</p>
+            <p className="text-indigo-600 text-[12px] font-bold tracking-[0.2em] uppercase mb-2.5">Easy Updates</p>
             <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900 mb-4">
-              Complete CRUD Control: Instant Edit & Delete
+              Fix Mistakes Instantly: Edit or Delete
             </h2>
             <p className="text-zinc-500 text-sm md:text-base leading-relaxed mb-6 font-medium">
-              Made an entry mistake? No problem. LedgerFlow gives you absolute flexibility to edit description tags, payment nodes, or transaction amounts, or delete them entirely on the fly.
+              Made an entry mistake? No problem. WalletInsights lets you easily edit description tags, payment methods, or transaction amounts, or delete them entirely.
             </p>
             <div className="bg-zinc-50 border border-zinc-150 rounded-xl p-4 flex items-start gap-3">
               <Info className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" />
               <p className="text-xs text-zinc-500 leading-relaxed font-semibold">
-                Every Edit or Delete operation instantly updates your running ledger. The starting balance lock guarantees that modifications re-calculate subsequent values correctly without manual auditing.
+                Every Edit or Delete operation instantly updates your running ledger. The starting balance is fully adjustable and can be changed at any time, instantly recalculating all subsequent values correctly without manual auditing.
               </p>
             </div>
           </div>
@@ -949,7 +986,7 @@ export function LandingPage() {
               Four Steps to Financial Clarity
             </h2>
             <p className="text-zinc-550 max-w-lg mx-auto text-sm md:text-base font-medium mt-3">
-              LedgerFlow is designed to be fast, clear, and highly structured. Here is how your daily bookkeeping flows.
+              WalletInsights is designed to be fast, clear, and highly structured. Here is how your daily bookkeeping flows.
             </p>
           </div>
 
@@ -966,7 +1003,7 @@ export function LandingPage() {
                 </div>
                 <h4 className="font-extrabold text-[16px] text-zinc-900 mb-2">Set Opening Balance</h4>
                 <p className="text-xs text-zinc-500 leading-relaxed font-medium">
-                  Set your initial cash balance once. Locking it protects your ledger from accidental edits and cell reference drift.
+                  Initialize your ledger starting balance on sign-up, or update your wallet balance from settings at any time.
                 </p>
               </div>
               <div className="mt-6 pt-4 border-t border-zinc-100 flex justify-center">
@@ -1043,6 +1080,143 @@ export function LandingPage() {
       </section>
 
 
+      {/* ============ Q&A & PUBLIC SUPPORT ============ */}
+      <section id="support-section" className="relative px-6 py-28 bg-[#fafafa] border-t border-zinc-200/60 font-medium">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          
+          {/* Q&A Section (7 columns) */}
+          <div className="lg:col-span-7 space-y-6">
+            <div>
+              <p className="text-indigo-600 text-[12px] font-bold tracking-[0.2em] uppercase mb-2">Q&A Knowledge Base</p>
+              <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight text-zinc-900">Frequently Asked Questions</h3>
+            </div>
+
+            <div className="space-y-4 pt-4">
+              {[
+                {
+                  q: "How do I initialize my wallet balance?",
+                  a: "When you register for the first time, you will be redirected to the Workspace Profile page. Here, you must initialize your starting balance before using credit or debit sheets."
+                },
+                {
+                  q: "Can I adjust my starting balance later?",
+                  a: "Yes! Your balance is not locked in place. You can update your starting or current wallet balance at any time from the Settings tab in your profile workspace."
+                },
+                {
+                  q: "Are transaction records private?",
+                  a: "Yes, absolutely. All ledger entries, credits, and debits are stored in your secure database. There are no third-party webhooks; everything is processed locally."
+                },
+                {
+                  q: "How do I generate and receive statements?",
+                  a: "Navigate to the 'Statement' page, select your start and end dates, and click 'Email PDF Statement'. The system generates a clean A4 PDF of your ledger and emails it to you instantly."
+                },
+                {
+                  q: "What email service is used for OTP and statements?",
+                  a: "We use a direct SMTP helper connected to your configured Gmail App Passwords or mail host. This ensures that OTP codes and PDFs are sent securely and instantly."
+                }
+              ].map((item, idx) => {
+                const isOpen = activeQaIdx === idx;
+                return (
+                  <div key={idx} className="bg-white border border-zinc-200/80 rounded-xl overflow-hidden transition-all duration-200">
+                    <button
+                      onClick={() => setActiveQaIdx(isOpen ? null : idx)}
+                      className="w-full px-5 py-4 text-left flex items-center justify-between font-bold text-zinc-800 text-[13px] md:text-sm hover:text-indigo-600 transition-colors cursor-pointer"
+                    >
+                      <span>{item.q}</span>
+                      <span className="text-[15px] font-semibold text-zinc-400 select-none">
+                        {isOpen ? '−' : '+'}
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="px-5 pb-5 pt-1 text-xs text-zinc-555 leading-relaxed border-t border-zinc-100 animate-in fade-in duration-150">
+                        {item.a}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Public Support Form (5 columns) */}
+          <div className="lg:col-span-5 bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm">
+            <h3 className="text-[16px] font-extrabold text-zinc-900 tracking-tight mb-2">Contact Support</h3>
+            <p className="text-xs text-zinc-500 leading-relaxed mb-6 font-medium">
+              Need assistance? Send a request and our support desk will respond directly to your email.
+            </p>
+
+            <form onSubmit={handleSupportSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Zulfekar Khan"
+                  value={supportName}
+                  onChange={(e) => setSupportName(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/10 transition-all font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="zulfekar@gmail.com"
+                  value={supportEmail}
+                  onChange={(e) => setSupportEmail(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/10 transition-all font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Subject</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Statement query, initialization error"
+                  value={supportSubject}
+                  onChange={(e) => setSupportSubject(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/10 transition-all font-medium"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Detailed Message</label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Describe your issue or query in detail..."
+                  value={supportMessage}
+                  onChange={(e) => setSupportMessage(e.target.value)}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-xs text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/10 transition-all font-medium resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={supportStatus === 'sending'}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer disabled:opacity-50"
+              >
+                {supportStatus === 'sending' ? 'Sending Request...' : 'Submit Support Ticket'}
+              </button>
+
+              {supportStatus === 'sent' && (
+                <p className="text-center text-[11px] font-semibold text-emerald-600 bg-emerald-50 py-2 rounded-lg animate-in fade-in">
+                  Support ticket submitted successfully!
+                </p>
+              )}
+              {supportStatus === 'error' && (
+                <p className="text-center text-[11px] font-semibold text-rose-600 bg-rose-50 py-2 rounded-lg animate-in fade-in">
+                  Failed to send request. Please try again.
+                </p>
+              )}
+            </form>
+          </div>
+
+        </div>
+      </section>
+
       {/* ============ FOOTER ============ */}
       <footer className="border-t border-zinc-200/80 bg-white px-6 pt-16 pb-8">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-10 mb-12">
@@ -1051,7 +1225,7 @@ export function LandingPage() {
               <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center">
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
               </div>
-              <span className="font-bold text-sm text-zinc-900">LedgerFlow</span>
+              <span className="font-bold text-sm text-zinc-900">WalletInsights</span>
             </div>
             <p className="text-zinc-500 text-[13px] leading-relaxed max-w-xs font-medium">
               A developer-first ledger for small teams and freelancers who want simple cash book tracking without the noise.
@@ -1086,7 +1260,7 @@ export function LandingPage() {
         </div>
 
         <div className="max-w-7xl mx-auto border-t border-zinc-150 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-zinc-450 text-[11px] font-medium">© 2026 LedgerFlow Workspace. All rights reserved.</p>
+          <p className="text-zinc-450 text-[11px] font-medium">© 2026 WalletInsights Workspace. All rights reserved.</p>
           <p className="text-[11px] text-zinc-400 flex items-center gap-1.5 font-bold uppercase tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span>
             Secure API Proxy Active

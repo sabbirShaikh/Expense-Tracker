@@ -43,7 +43,7 @@ const getStatementDayKey = (date = new Date()) => {
 const normalizeEmail = (value: string) => value.trim().toLowerCase()
 
 const getStatementLimitStorageKey = (value: string) =>
-  `ledgerflow_statement_email_limit_${normalizeEmail(value)}`
+  `walletinsights_statement_email_limit_${normalizeEmail(value)}`
 
 const getDefaultStatementLimitState = (): StatementEmailLimitState => ({
   dayKey: getStatementDayKey(),
@@ -186,6 +186,10 @@ const formatLocalDate = (date = new Date()) => {
 }
 
 export function StatementPage() {
+  useEffect(() => {
+    document.title = 'Generate Account Statements | WalletInsights'
+  }, [])
+
   const { unifiedRecords, loading } = useLedger()
   const { user, email } = useAuth()
   const recipientEmail = user?.Email || email || ''
@@ -385,7 +389,7 @@ export function StatementPage() {
   <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
     <tr>
       <td>
-        <h1 style="margin: 0; color: #4f46e5; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">LedgerFlow</h1>
+        <h1 style="margin: 0; color: #4f46e5; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">WalletInsights</h1>
         <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">Personal Expense & Financial Statement</p>
       </td>
       <td style="text-align: right; vertical-align: top;">
@@ -495,8 +499,8 @@ export function StatementPage() {
   ` : `<p style="margin: 0 0 24px 0; font-size: 12px; color: #64748b; font-style: italic;">No expenses recorded in this statement period.</p>`}
 
   <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; color: #94a3b8; font-size: 11px;">
-    <p style="margin: 0;">This is a system generated statement of accounts for LedgerFlow.</p>
-    <p style="margin: 4px 0 0 0;">Thank you for using LedgerFlow for your financial tracking needs.</p>
+    <p style="margin: 0;">This is a system generated statement of accounts for WalletInsights.</p>
+    <p style="margin: 4px 0 0 0;">Thank you for using WalletInsights for your financial tracking needs.</p>
   </div>
 </div>
     `

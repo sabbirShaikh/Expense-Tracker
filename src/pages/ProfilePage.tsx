@@ -31,6 +31,10 @@ interface ProfileFormInputs {
 }
 
 export function ProfilePage() {
+  useEffect(() => {
+    document.title = 'Profile & Workspace Settings | WalletInsights'
+  }, [])
+
   const {
     user,
     loading: authLoading,

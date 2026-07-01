@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLedger } from '../hooks/useLedger'
 import {
   IndianRupee,
@@ -21,6 +21,10 @@ const getLocalDateTimeString = (date = new Date()) => {
 }
 
 export function DashboardPage() {
+  useEffect(() => {
+    document.title = 'Overview Dashboard | WalletInsights'
+  }, [])
+
   const {
     credits,
     debits,

@@ -193,4 +193,30 @@ export const sendStatementEmail = async (email, html, startDate, endDate) => {
   return { success: true, message: 'SMTP not configured, statement logged to console' };
 };
 
-export default { sendOTPEmail, sendStatementEmail };
+export const sendSupportEmail = async ({ to, fromEmail, fromName, subject, htmlText }) => {
+  const activeTransporter = getTransporter();
+  const smtpFrom = cleanEnvVar(process.env.SMTP_FROM) || '"Expense Tracker Workspace" <no-reply@ledger.com>';
+
+  if (activeTransporter) {
+    try {
+      const info = await activeTransporter.sendMail({
+        from: smtpFrom,
+        to: to,
+        replyTo: `"${fromName}" <${fromEmail}>`,
+        subject: subject,
+        html: htmlText,
+      });
+      console.log(`Support Email sent successfully! MessageID: ${info.messageId}`);
+      return { success: true };
+    } catch (smtpError) {
+      console.error(`SMTP Support Send Error details:`, smtpError);
+      throw smtpError;
+    }
+  }
+
+  console.warn(`SMTP is not configured. Support email log:\nTo: ${to}\nFrom: ${fromName} <${fromEmail}>\nSubject: ${subject}\nBody:\n${htmlText}`);
+  return { success: true, message: 'SMTP not configured, support email logged to console' };
+};
+
+export default { sendOTPEmail, sendStatementEmail, sendSupportEmail };
+

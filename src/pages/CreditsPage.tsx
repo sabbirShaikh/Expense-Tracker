@@ -70,6 +70,10 @@ const RefundIcon = () => <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" 
 const BorrowedIcon = () => <Handshake className="w-4 h-4 text-indigo-400 shrink-0" />
 
 export function CreditsPage() {
+  useEffect(() => {
+    document.title = 'Incomes & Earnings | WalletInsights'
+  }, [])
+
   const { credits, loading, error, addCredit, fetchCredits, deleteCredit, updateCredit } = useLedger()
   const { email } = useAuth()
 
@@ -125,7 +129,7 @@ export function CreditsPage() {
 
   useEffect(() => {
     if (!email) return
-    const stored = localStorage.getItem(`ledgerflow_presets_credit_${email}`)
+    const stored = localStorage.getItem(`walletinsights_presets_credit_${email}`)
     if (stored) {
       try {
         setPresetItems(JSON.parse(stored))
@@ -134,7 +138,7 @@ export function CreditsPage() {
       }
     } else {
       setPresetItems(DEFAULT_CREDIT_PRESETS)
-      localStorage.setItem(`ledgerflow_presets_credit_${email}`, JSON.stringify(DEFAULT_CREDIT_PRESETS))
+      localStorage.setItem(`walletinsights_presets_credit_${email}`, JSON.stringify(DEFAULT_CREDIT_PRESETS))
     }
   }, [email])
 
@@ -154,7 +158,7 @@ export function CreditsPage() {
     const updated = [...presetItems, newPreset]
     setPresetItems(updated)
     if (email) {
-      localStorage.setItem(`ledgerflow_presets_credit_${email}`, JSON.stringify(updated))
+      localStorage.setItem(`walletinsights_presets_credit_${email}`, JSON.stringify(updated))
     }
 
     // Reset form
@@ -169,7 +173,7 @@ export function CreditsPage() {
     const updated = presetItems.filter((_, idx) => idx !== indexToDelete)
     setPresetItems(updated)
     if (email) {
-      localStorage.setItem(`ledgerflow_presets_credit_${email}`, JSON.stringify(updated))
+      localStorage.setItem(`walletinsights_presets_credit_${email}`, JSON.stringify(updated))
     }
   }
 
@@ -220,7 +224,7 @@ export function CreditsPage() {
 
     if (success !== null) {
       if (finalPurpose === 'Borrowed / Loan') {
-        const storageKey = `ledgerflow_peer_loans_${email}`
+        const storageKey = `walletinsights_peer_loans_${email}`
         let list = []
         try {
           const stored = localStorage.getItem(storageKey)

@@ -12,7 +12,8 @@ import {
   X,
   Wallet,
   Handshake,
-  FileText
+  FileText,
+  HelpCircle
 } from 'lucide-react'
 
 export function Layout() {
@@ -38,6 +39,8 @@ export function Layout() {
         return 'Statement & Export'
       case '/profile':
         return 'Workspace Profile'
+      case '/support':
+        return 'Contact Support'
       default:
         return 'Expense Tracker'
     }
@@ -57,6 +60,7 @@ export function Layout() {
     { to: '/debts', label: 'Borrow & Lend', icon: Handshake },
     { to: '/statement', label: 'Statement & Export', icon: FileText },
     { to: '/profile', label: 'Profile Settings', icon: User },
+    { to: '/support', label: 'Contact Support', icon: HelpCircle },
   ]
 
   const sidebarContent = (
@@ -69,7 +73,7 @@ export function Layout() {
         </div>
         <div className="flex flex-col justify-center">
           <h1 className="text-[15px] font-bold text-zinc-100 tracking-wide leading-none">Expense Tracker</h1>
-          <p className="text-[10px] text-zinc-500 font-semibold tracking-wider uppercase font-mono mt-1.5">SaaS Workspace</p>
+          <p className="text-[10px] text-zinc-500 font-semibold tracking-wider uppercase font-mono mt-1.5">Personal Workspace</p>
         </div>
       </div>
 

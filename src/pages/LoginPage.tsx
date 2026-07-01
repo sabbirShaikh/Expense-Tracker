@@ -30,6 +30,10 @@ interface RegisterFormInputs {
 }
 
 export function LoginPage() {
+  useEffect(() => {
+    document.title = 'Login & Onboarding | WalletInsights'
+  }, [])
+
   const {
     email,
     loading: authLoading,

@@ -27,11 +27,15 @@ interface LoanRecord {
 }
 
 export function BorrowLendPage() {
+  useEffect(() => {
+    document.title = 'Borrow & Lend Ledger | WalletInsights'
+  }, [])
+
   const { email } = useAuth()
   const { addCredit, addDebit } = useLedger()
 
   // Storage key scoped by user email
-  const storageKey = `ledgerflow_peer_loans_${email}`
+  const storageKey = `walletinsights_peer_loans_${email}`
 
   // State hooks
   const [loans, setLoans] = useState<LoanRecord[]>([])
