@@ -1,5 +1,8 @@
 import nodemailer from 'nodemailer';
 import puppeteer from 'puppeteer';
+import chromium from '@sparticuz/chromium';
+import puppeteerCore from 'puppeteer-core';
+
 
 // Helper to clean quotes if dotenv loads them literally
 const cleanEnvVar = (val) => {
@@ -101,23 +104,41 @@ export const sendStatementEmail = async (email, html, startDate, endDate) => {
     try {
       console.log(`Generating PDF statement via Puppeteer...`);
       try {
-        browser = await puppeteer.launch({
-          headless: 'new',
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-      } catch (launchErr) {
-        console.warn('Standard Puppeteer launch failed. Attempting serverless chromium fallback...', launchErr.message);
-        try {
-          const sparticuzChromium = await import('@sparticuz/chromium');
-          const puppeteerCore = await import('puppeteer-core');
+        if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+          console.log('Running in production/Vercel. Launching serverless Chromium...');
           browser = await puppeteerCore.launch({
-            args: sparticuzChromium.default.args,
-            defaultViewport: sparticuzChromium.default.defaultViewport,
-            executablePath: await sparticuzChromium.default.executablePath(),
-            headless: sparticuzChromium.default.headless,
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
           });
+        } else {
+          console.log('Running locally. Launching standard Puppeteer...');
+          browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+          });
+        }
+      } catch (launchErr) {
+        console.warn('Primary browser launch failed. Attempting alternative launch fallback...', launchErr.message);
+        try {
+          if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+            // Local fallback
+            browser = await puppeteer.launch({
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+          } else {
+            // Serverless fallback
+            browser = await puppeteerCore.launch({
+              args: chromium.args,
+              defaultViewport: chromium.defaultViewport,
+              executablePath: await chromium.executablePath(),
+              headless: chromium.headless,
+            });
+          }
         } catch (fallbackErr) {
-          console.error('Serverless chromium fallback also failed:', fallbackErr);
+          console.error('All browser launch strategies failed:', fallbackErr);
           throw launchErr;
         }
       }
