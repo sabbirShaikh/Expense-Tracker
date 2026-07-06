@@ -100,10 +100,27 @@ export const sendStatementEmail = async (email, html, startDate, endDate) => {
     let browser = null;
     try {
       console.log(`Generating PDF statement via Puppeteer...`);
-      browser = await puppeteer.launch({
-        headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
+      try {
+        browser = await puppeteer.launch({
+          headless: 'new',
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+      } catch (launchErr) {
+        console.warn('Standard Puppeteer launch failed. Attempting serverless chromium fallback...', launchErr.message);
+        try {
+          const sparticuzChromium = await import('@sparticuz/chromium');
+          const puppeteerCore = await import('puppeteer-core');
+          browser = await puppeteerCore.launch({
+            args: sparticuzChromium.default.args,
+            defaultViewport: sparticuzChromium.default.defaultViewport,
+            executablePath: await sparticuzChromium.default.executablePath(),
+            headless: sparticuzChromium.default.headless,
+          });
+        } catch (fallbackErr) {
+          console.error('Serverless chromium fallback also failed:', fallbackErr);
+          throw launchErr;
+        }
+      }
       const page = await browser.newPage();
       await page.emulateMediaType('screen');
       await page.setContent(html, { waitUntil: 'networkidle0' });
